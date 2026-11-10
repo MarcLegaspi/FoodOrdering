@@ -1,5 +1,7 @@
+using FoodOrdering.Api.Filters;
 using FoodOrdering.Application.Catalog;
 using FoodOrdering.Application.Common.Interfaces;
+using FoodOrdering.Domain.Stores;
 
 namespace FoodOrdering.Api.Endpoints;
 
@@ -49,7 +51,7 @@ public static class CategoryEndpoints
 
             return Results.Created($"/api/categories/{result.Category.PublicId}", result.Category);
         })
-        .RequireAuthorization();
+        .RequireStoreRole(StoreRole.Staff);
 
         return app;
     }

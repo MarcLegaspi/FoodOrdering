@@ -1,3 +1,5 @@
+using FoodOrdering.Domain.Stores;
+
 namespace FoodOrdering.Application.Auth;
 
 public sealed record RegisterRequest(
@@ -9,11 +11,18 @@ public sealed record LoginRequest(
     string Email,
     string Password);
 
+public sealed record ManagedStoreResponse(
+    Guid StorePublicId,
+    string Slug,
+    string Name,
+    StoreRole Role);
+
 public sealed record UserInfoResponse(
     Guid Id,
     string FullName,
     string Email,
-    IReadOnlyList<string> Roles);
+    IReadOnlyList<string> Roles,
+    IReadOnlyList<ManagedStoreResponse> ManagedStores);
 
 public sealed record AuthResponse(
     string AccessToken,

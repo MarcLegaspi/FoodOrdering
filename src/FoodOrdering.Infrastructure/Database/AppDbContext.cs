@@ -18,6 +18,8 @@ public sealed class AppDbContext(
 
     public DbSet<Store> Stores => Set<Store>();
 
+    public DbSet<StoreMember> StoreMembers => Set<StoreMember>();
+
     public DbSet<Category> Categories => Set<Category>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -26,9 +28,12 @@ public sealed class AppDbContext(
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
-        // Fail-closed multi-tenant filter: queries against Category only return rows for the active store
+        // Fail-closed multi-tenant filters: queries only return rows for the active store
         modelBuilder.Entity<Category>()
             .HasQueryFilter(c => _tenantContext.StoreId != null && c.StoreId == _tenantContext.StoreId);
+
+        modelBuilder.Entity<StoreMember>()
+            .HasQueryFilter(m => _tenantContext.StoreId != null && m.StoreId == _tenantContext.StoreId);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

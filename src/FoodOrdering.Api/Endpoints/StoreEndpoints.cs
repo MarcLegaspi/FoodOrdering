@@ -1,3 +1,4 @@
+using FoodOrdering.Application.Auth;
 using FoodOrdering.Application.Stores;
 
 namespace FoodOrdering.Api.Endpoints;
@@ -36,7 +37,8 @@ public static class StoreEndpoints
             }
 
             return Results.Created($"/api/stores/{result.Store.Slug}", result.Store);
-        });
+        })
+        .RequireAuthorization(policy => policy.RequireRole(AppRoles.Admin));
 
         return app;
     }

@@ -8,6 +8,8 @@ public interface IAppDbContext
 {
     DbSet<Store> Stores { get; }
 
+    DbSet<StoreMember> StoreMembers { get; }
+
     DbSet<Category> Categories { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

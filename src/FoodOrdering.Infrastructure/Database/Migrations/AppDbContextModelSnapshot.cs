@@ -157,6 +157,39 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         });
                 });
 
+            modelBuilder.Entity("FoodOrdering.Domain.Stores.StoreMember", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("StoreId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("StoreId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("store_members", (string)null);
+                });
+
             modelBuilder.Entity("FoodOrdering.Infrastructure.Identity.AppUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -370,6 +403,23 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                     b.Navigation("Store");
                 });
 
+            modelBuilder.Entity("FoodOrdering.Domain.Stores.StoreMember", b =>
+                {
+                    b.HasOne("FoodOrdering.Domain.Stores.Store", "Store")
+                        .WithMany("Members")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FoodOrdering.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
@@ -424,6 +474,8 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
             modelBuilder.Entity("FoodOrdering.Domain.Stores.Store", b =>
                 {
                     b.Navigation("Categories");
+
+                    b.Navigation("Members");
                 });
 #pragma warning restore 612, 618
         }

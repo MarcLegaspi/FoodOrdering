@@ -4,7 +4,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FoodOrdering.Application.Stores;
 
-public sealed class StoreService(IAppDbContext db)
+public sealed class StoreService(
+    IAppDbContext db,
+    IUserDirectory userDirectory)
 {
     public async Task<IReadOnlyList<StoreResponse>> GetAllAsync(CancellationToken ct = default)
     {
@@ -42,6 +44,35 @@ public sealed class StoreService(IAppDbContext db)
             return CreateStoreResult.Conflict($"A store with slug '{slug}' already exists.");
         }
 
+        UserSummary? owner = null;
+        if (!string.IsNullOrWhiteSpace(request.OwnerEmail))
+        {
+            var ownerEmail = request.OwnerEmail.Trim();
+            owner = await userDirectory.FindByEmailAsync(ownerEmail, ct);
+
+            if (owner is null)
+            {
+                if (string.IsNullOrWhiteSpace(request.OwnerFullName) || string.IsNullOrWhiteSpace(request.OwnerPassword))
+                {
+                    return CreateStoreResult.ValidationError(
+                        $"User '{ownerEmail}' does not exist yet. Provide OwnerFullName and OwnerPassword to create them.");
+                }
+
+                var (createdOwner, errors) = await userDirectory.CreateCustomerAsync(
+                    ownerEmail,
+                    request.OwnerFullName,
+                    request.OwnerPassword,
+                    ct);
+
+                if (createdOwner is null)
+                {
+                    return CreateStoreResult.ValidationError(string.Join(" ", errors));
+                }
+
+                owner = createdOwner;
+            }
+        }
+
         var store = new Store
         {
             Slug = slug,
@@ -51,6 +82,17 @@ public sealed class StoreService(IAppDbContext db)
         };
 
         db.Stores.Add(store);
+
+        if (owner is not null)
+        {
+            db.StoreMembers.Add(new StoreMember
+            {
+                Store = store,
+                UserId = owner.Id,
+                Role = StoreRole.Owner
+            });
+        }
+
         await db.SaveChangesAsync(ct);
 
         return CreateStoreResult.Created(ToResponse(store));

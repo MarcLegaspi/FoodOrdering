@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddAuthorization();
 
         services.AddScoped<JwtTokenGenerator>();
+        services.AddScoped<IUserDirectory, IdentityUserDirectory>();
         services.AddScoped<IAuthService, IdentityAuthService>();
 
         return services;

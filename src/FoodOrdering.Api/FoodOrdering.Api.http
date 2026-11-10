@@ -1,66 +1,101 @@
 @FoodOrdering.Api_HostAddress = http://localhost:5230
 
-### 1. Register a new user (defaults to Customer role)
-POST {{FoodOrdering.Api_HostAddress}}/api/auth/register
-Content-Type: application/json
-
-  {
-    "fullName": "Jane Doe",
-    "email": "jane@example.com",
-    "password": "Password123"
-  }
-
-### 2. Login to get a JWT access token
-# @name login
+### 1. Login as the seeded Platform Admin
+# @name adminLogin
 POST {{FoodOrdering.Api_HostAddress}}/api/auth/login
 Content-Type: application/json
 
 {
-  "email": "jane@example.com",
-  "password": "Password123"
+  "email": "admin@foodordering.local",
+  "password": "AdminPassword123"
 }
 
-### 3. Get current logged-in user profile (requires JWT)
-GET {{FoodOrdering.Api_HostAddress}}/api/auth/me
-Authorization: Bearer {{login.response.body.accessToken}}
-Accept: application/json
-
-### List all stores (public)
-GET {{FoodOrdering.Api_HostAddress}}/api/stores
-Accept: application/json
-
-### Get a store by slug (public)
-GET {{FoodOrdering.Api_HostAddress}}/api/stores/burger-barn
-Accept: application/json
-
-### Create a store
+### 2. Admin creates a store and assigns/creates its Store Owner
 POST {{FoodOrdering.Api_HostAddress}}/api/stores
 Content-Type: application/json
+Authorization: Bearer {{adminLogin.response.body.accessToken}}
 
 {
   "slug": "taco-town",
   "name": "Taco Town",
   "email": "hello@tacotown.local",
-  "phone": "+1-555-0104"
+  "phone": "+1-555-0104",
+  "ownerEmail": "owner@tacotown.local",
+  "ownerFullName": "Taco Owner",
+  "ownerPassword": "Password123"
 }
 
-### Create a category for Burger Barn (requires JWT + tenant header)
-POST {{FoodOrdering.Api_HostAddress}}/api/categories
+### 3. Store Owner logs in (managedStores will include taco-town as Owner = 3)
+# @name ownerLogin
+POST {{FoodOrdering.Api_HostAddress}}/api/auth/login
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
-X-Store-Slug: burger-barn
 
 {
-  "name": "Signature Burgers",
+  "email": "owner@tacotown.local",
+  "password": "Password123"
+}
+
+### 4. Store Owner adds a Staff member to Taco Town (Role: 1=Staff, 2=Manager, 3=Owner)
+POST {{FoodOrdering.Api_HostAddress}}/api/store-members
+Content-Type: application/json
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+X-Store-Slug: taco-town
+
+{
+  "email": "staff@tacotown.local",
+  "role": 1,
+  "fullName": "Taco Staff",
+  "password": "Password123"
+}
+
+### 5. List Taco Town members (Manager/Owner only)
+GET {{FoodOrdering.Api_HostAddress}}/api/store-members
+Accept: application/json
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+X-Store-Slug: taco-town
+
+### 6. Staff logs in and creates a category for Taco Town
+# @name staffLogin
+POST {{FoodOrdering.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "staff@tacotown.local",
+  "password": "Password123"
+}
+
+### 7. Staff creates a category for Taco Town (returns 201 Created)
+POST {{FoodOrdering.Api_HostAddress}}/api/categories
+Content-Type: application/json
+Authorization: Bearer {{staffLogin.response.body.accessToken}}
+X-Store-Slug: taco-town
+
+{
+  "name": "Street Tacos",
   "sortOrder": 1
 }
 
-### List categories for Burger Barn (tenant-scoped)
-GET {{FoodOrdering.Api_HostAddress}}/api/categories
-Accept: application/json
-X-Store-Slug: burger-barn
+### 8. Customer registers publicly (gets global Customer role, no store_members access)
+# @name customerLogin
+POST {{FoodOrdering.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
 
-### List categories for Pizza Palace (isolated tenant - won't see Burger Barn's categories)
+{
+  "fullName": "Jane Customer",
+  "email": "jane@example.com",
+  "password": "Password123"
+}
+
+### 9. Check current user profile & managed stores
+GET {{FoodOrdering.Api_HostAddress}}/api/auth/me
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+Accept: application/json
+
+### 10. Public store & category browsing (no auth required)
+GET {{FoodOrdering.Api_HostAddress}}/api/stores
+Accept: application/json
+
+###
 GET {{FoodOrdering.Api_HostAddress}}/api/categories
 Accept: application/json
-X-Store-Slug: pizza-palace
+X-Store-Slug: taco-town
