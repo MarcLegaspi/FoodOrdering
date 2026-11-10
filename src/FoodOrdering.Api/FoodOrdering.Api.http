@@ -1,20 +1,66 @@
 @FoodOrdering.Api_HostAddress = http://localhost:5230
 
+### 1. Register a new user (defaults to Customer role)
+POST {{FoodOrdering.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+  {
+    "fullName": "Jane Doe",
+    "email": "jane@example.com",
+    "password": "Password123"
+  }
+
+### 2. Login to get a JWT access token
+# @name login
+POST {{FoodOrdering.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "jane@example.com",
+  "password": "Password123"
+}
+
+### 3. Get current logged-in user profile (requires JWT)
+GET {{FoodOrdering.Api_HostAddress}}/api/auth/me
+Authorization: Bearer {{login.response.body.accessToken}}
+Accept: application/json
+
+### List all stores (public)
+GET {{FoodOrdering.Api_HostAddress}}/api/stores
+Accept: application/json
+
+### Get a store by slug (public)
+GET {{FoodOrdering.Api_HostAddress}}/api/stores/burger-barn
+Accept: application/json
+
 ### Create a store
 POST {{FoodOrdering.Api_HostAddress}}/api/stores
 Content-Type: application/json
 
 {
-  "slug": "burger-barn",
-  "name": "Burger Barn",
-  "email": "hello@burgerbarn.test",
-  "phone": "+1-555-0100"
+  "slug": "taco-town",
+  "name": "Taco Town",
+  "email": "hello@tacotown.local",
+  "phone": "+1-555-0104"
 }
 
-### List all stores
-GET {{FoodOrdering.Api_HostAddress}}/api/stores
-Accept: application/json
+### Create a category for Burger Barn (requires JWT + tenant header)
+POST {{FoodOrdering.Api_HostAddress}}/api/categories
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+X-Store-Slug: burger-barn
 
-### Get a store by slug
-GET {{FoodOrdering.Api_HostAddress}}/api/stores/burger-barn
+{
+  "name": "Signature Burgers",
+  "sortOrder": 1
+}
+
+### List categories for Burger Barn (tenant-scoped)
+GET {{FoodOrdering.Api_HostAddress}}/api/categories
 Accept: application/json
+X-Store-Slug: burger-barn
+
+### List categories for Pizza Palace (isolated tenant - won't see Burger Barn's categories)
+GET {{FoodOrdering.Api_HostAddress}}/api/categories
+Accept: application/json
+X-Store-Slug: pizza-palace

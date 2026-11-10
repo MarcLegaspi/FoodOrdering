@@ -1,3 +1,4 @@
+using FoodOrdering.Domain.Catalog;
 using FoodOrdering.Domain.Common;
 
 namespace FoodOrdering.Domain.Stores;
@@ -17,4 +18,6 @@ public sealed class Store : AuditableEntity
     public string Phone { get; set; } = string.Empty;
 
     public bool IsActive { get; set; } = true;
+
+    public ICollection<Category> Categories { get; set; } = new List<Category>();
 }

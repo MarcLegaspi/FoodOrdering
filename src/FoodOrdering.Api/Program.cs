@@ -1,4 +1,5 @@
 using FoodOrdering.Api.Endpoints;
+using FoodOrdering.Api.Middleware;
 using FoodOrdering.Application;
 using FoodOrdering.Infrastructure;
 
@@ -16,7 +17,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseMiddleware<TenantResolutionMiddleware>();
 
+app.MapAuthEndpoints();
 app.MapStoreEndpoints();
+app.MapCategoryEndpoints();
 
 app.Run();
