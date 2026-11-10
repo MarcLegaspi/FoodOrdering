@@ -5,12 +5,14 @@ on:
     branches: [ main, master ]
     paths:
       - 'src/**'
+      - 'tests/**'
       - 'FoodOrdering.slnx'
       - '.github/workflows/backend-ci.yml'
   pull_request:
     branches: [ main, master ]
     paths:
       - 'src/**'
+      - 'tests/**'
       - 'FoodOrdering.slnx'
 
 jobs:
@@ -31,3 +33,6 @@ jobs:
 
       - name: Build
         run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release
