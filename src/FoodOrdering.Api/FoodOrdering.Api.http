@@ -65,6 +65,7 @@ Content-Type: application/json
 }
 
 ### 7. Staff creates a category for Taco Town (returns 201 Created)
+# @name createCategory
 POST {{FoodOrdering.Api_HostAddress}}/api/categories
 Content-Type: application/json
 Authorization: Bearer {{staffLogin.response.body.accessToken}}
@@ -72,6 +73,22 @@ X-Store-Slug: taco-town
 
 {
   "name": "Street Tacos",
+  "sortOrder": 1
+}
+
+### 7b. Staff adds a MenuItem under that category
+# @name createMenuItem
+POST {{FoodOrdering.Api_HostAddress}}/api/menu-items
+Content-Type: application/json
+Authorization: Bearer {{staffLogin.response.body.accessToken}}
+X-Store-Slug: taco-town
+
+{
+  "categoryPublicId": "{{createCategory.response.body.publicId}}",
+  "name": "Carne Asada Taco",
+  "description": "Grilled steak, cilantro, onion, lime",
+  "price": 4.50,
+  "isAvailable": true,
   "sortOrder": 1
 }
 
@@ -99,3 +116,46 @@ Accept: application/json
 GET {{FoodOrdering.Api_HostAddress}}/api/categories
 Accept: application/json
 X-Store-Slug: taco-town
+
+###
+GET {{FoodOrdering.Api_HostAddress}}/api/menu-items?availableOnly=true
+Accept: application/json
+X-Store-Slug: taco-town
+
+### 11. Customer places an order at Taco Town (server computes total & snapshots price)
+# @name placeOrder
+POST {{FoodOrdering.Api_HostAddress}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{customerLogin.response.body.accessToken}}
+X-Store-Slug: taco-town
+
+{
+  "items": [
+    {
+      "menuItemPublicId": "{{createMenuItem.response.body.publicId}}",
+      "quantity": 2
+    }
+  ],
+  "notes": "Extra lime please"
+}
+
+### 12. Customer views their own order history
+GET {{FoodOrdering.Api_HostAddress}}/api/orders/my
+Accept: application/json
+Authorization: Bearer {{customerLogin.response.body.accessToken}}
+
+### 13. Store Staff views incoming orders for Taco Town
+GET {{FoodOrdering.Api_HostAddress}}/api/orders
+Accept: application/json
+Authorization: Bearer {{staffLogin.response.body.accessToken}}
+X-Store-Slug: taco-town
+
+### 14. Store Staff confirms the order (Status: 2=Confirmed, 3=Preparing, 4=Ready, 5=Completed, 6=Cancelled)
+PATCH {{FoodOrdering.Api_HostAddress}}/api/orders/{{placeOrder.response.body.publicId}}/status
+Content-Type: application/json
+Authorization: Bearer {{staffLogin.response.body.accessToken}}
+X-Store-Slug: taco-town
+
+{
+  "status": 2
+}

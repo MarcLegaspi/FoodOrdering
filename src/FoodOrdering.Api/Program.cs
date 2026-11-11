@@ -47,6 +47,8 @@ app.MapAuthEndpoints();
 app.MapStoreEndpoints();
 app.MapStoreMemberEndpoints();
 app.MapCategoryEndpoints();
+app.MapMenuItemEndpoints();
+app.MapOrderEndpoints();
 
 await AdminSeeder.SeedAsync(app.Services);
 

@@ -18,4 +18,6 @@ public sealed class Category : AuditableEntity, ITenantEntity
     public int SortOrder { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    public ICollection<MenuItem> MenuItems { get; set; } = new List<MenuItem>();
 }
