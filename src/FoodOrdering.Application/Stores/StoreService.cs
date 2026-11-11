@@ -79,7 +79,9 @@ public sealed class StoreService(
             Slug = slug,
             Name = name,
             Email = request.Email.Trim(),
-            Phone = request.Phone.Trim()
+            Phone = request.Phone.Trim(),
+            Address = request.Address?.Trim() ?? string.Empty,
+            OpeningHours = request.OpeningHours?.Trim() ?? string.Empty
         };
 
         db.Stores.Add(store);
@@ -120,6 +122,38 @@ public sealed class StoreService(
         return ToResponse(store);
     }
 
+    public async Task<StoreProfileResult> UpdateCurrentStoreProfileAsync(
+        UpdateStoreProfileRequest request,
+        CancellationToken ct = default)
+    {
+        if (tenantContext.StoreId is not long storeId)
+        {
+            return StoreProfileResult.NotFound("Store tenant context is required.");
+        }
+
+        var name = request.Name.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return StoreProfileResult.ValidationError("Store name is required.");
+        }
+
+        var store = await db.Stores.FirstOrDefaultAsync(s => s.Id == storeId, ct);
+        if (store is null)
+        {
+            return StoreProfileResult.NotFound("Active store was not found.");
+        }
+
+        store.Name = name;
+        store.Email = request.Email.Trim();
+        store.Phone = request.Phone.Trim();
+        store.Address = request.Address.Trim();
+        store.OpeningHours = request.OpeningHours.Trim();
+
+        await db.SaveChangesAsync(ct);
+
+        return StoreProfileResult.Success(ToResponse(store));
+    }
+
     private static string NormalizeSlug(string slug) =>
         slug.Trim().ToLowerInvariant();
 
@@ -130,9 +164,21 @@ public sealed class StoreService(
             store.Name,
             store.Email,
             store.Phone,
+            store.Address,
+            store.OpeningHours,
             store.IsActive,
             store.IsAcceptingOrders,
             store.CreatedAtUtc);
+}
+
+public sealed record StoreProfileResult(
+    StoreResponse? Store,
+    string? Error,
+    bool IsNotFound = false)
+{
+    public static StoreProfileResult Success(StoreResponse store) => new(store, null);
+    public static StoreProfileResult ValidationError(string error) => new(null, error);
+    public static StoreProfileResult NotFound(string error) => new(null, error, IsNotFound: true);
 }
 
 public sealed record CreateStoreResult(

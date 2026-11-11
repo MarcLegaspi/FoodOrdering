@@ -40,8 +40,14 @@ import { TenantService } from '../../core/tenant/tenant.service';
                 }
               </div>
               <p class="mt-1 text-xs text-slate-400">/{{ store.slug }}</p>
+              @if (store.address) {
+                <p class="mt-3 text-sm text-slate-600">{{ store.address }}</p>
+              }
+              @if (store.openingHours) {
+                <p class="mt-1 text-xs text-slate-500">{{ store.openingHours }}</p>
+              }
               @if (store.email) {
-                <p class="mt-3 text-sm text-slate-600">{{ store.email }}</p>
+                <p class="mt-2 text-xs text-slate-400">{{ store.email }}</p>
               }
             </a>
           }

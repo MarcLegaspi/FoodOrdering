@@ -7,9 +7,18 @@ public sealed record CreateStoreRequest(
     string Phone,
     string? OwnerEmail = null,
     string? OwnerFullName = null,
-    string? OwnerPassword = null);
+    string? OwnerPassword = null,
+    string? Address = null,
+    string? OpeningHours = null);
 
 public sealed record UpdateStoreSettingsRequest(bool IsAcceptingOrders);
+
+public sealed record UpdateStoreProfileRequest(
+    string Name,
+    string Email = "",
+    string Phone = "",
+    string Address = "",
+    string OpeningHours = "");
 
 public sealed record StoreResponse(
     Guid PublicId,
@@ -17,6 +26,8 @@ public sealed record StoreResponse(
     string Name,
     string Email,
     string Phone,
+    string Address,
+    string OpeningHours,
     bool IsActive,
     bool IsAcceptingOrders,
     DateTime CreatedAtUtc);

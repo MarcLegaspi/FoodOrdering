@@ -39,6 +39,16 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
         builder.Property(s => s.Phone)
             .HasMaxLength(50);
 
+        builder.Property(s => s.Address)
+            .IsRequired()
+            .HasMaxLength(300)
+            .HasDefaultValue(string.Empty);
+
+        builder.Property(s => s.OpeningHours)
+            .IsRequired()
+            .HasMaxLength(200)
+            .HasDefaultValue(string.Empty);
+
         builder.Property(s => s.IsActive)
             .IsRequired()
             .HasDefaultValue(true);
@@ -58,6 +68,8 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
                 Name = "Burger Barn",
                 Email = "hello@burgerbarn.local",
                 Phone = "+1-555-0101",
+                Address = "101 Grill Ave, Downtown",
+                OpeningHours = "Daily 10:00 AM - 10:00 PM",
                 IsActive = true,
                 IsAcceptingOrders = true,
                 CreatedAtUtc = seedDate
@@ -70,6 +82,8 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
                 Name = "Pizza Palace",
                 Email = "hello@pizzapalace.local",
                 Phone = "+1-555-0102",
+                Address = "202 Brick Oven St, Midtown",
+                OpeningHours = "Daily 11:00 AM - 11:00 PM",
                 IsActive = true,
                 IsAcceptingOrders = true,
                 CreatedAtUtc = seedDate
@@ -82,6 +96,8 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
                 Name = "Sushi Spot",
                 Email = "hello@sushispot.local",
                 Phone = "+1-555-0103",
+                Address = "303 Harbor Way, Waterfront",
+                OpeningHours = "Tue-Sun 11:30 AM - 9:30 PM",
                 IsActive = true,
                 IsAcceptingOrders = true,
                 CreatedAtUtc = seedDate

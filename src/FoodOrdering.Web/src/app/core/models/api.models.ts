@@ -45,9 +45,19 @@ export interface Store {
   name: string;
   email: string;
   phone: string;
+  address: string;
+  openingHours: string;
   isActive: boolean;
   isAcceptingOrders: boolean;
   createdAtUtc: string;
+}
+
+export interface UpdateStoreProfileRequest {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  openingHours: string;
 }
 
 export interface CreateStoreRequest {

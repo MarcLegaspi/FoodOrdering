@@ -12,7 +12,8 @@ import {
   PlaceOrderRequest,
   SaveMenuItemRequest,
   Store,
-  StoreMember
+  StoreMember,
+  UpdateStoreProfileRequest
 } from '../models/api.models';
 
 @Injectable({ providedIn: 'root' })
@@ -35,6 +36,10 @@ export class FoodOrderingApiService {
 
   updateCurrentStoreSettings(isAcceptingOrders: boolean): Observable<Store> {
     return this.http.patch<Store>(`${this.api}/stores/current/settings`, { isAcceptingOrders });
+  }
+
+  updateCurrentStoreProfile(payload: UpdateStoreProfileRequest): Observable<Store> {
+    return this.http.put<Store>(`${this.api}/stores/current/profile`, payload);
   }
 
   // Categories (uses X-Store-Slug via tenantInterceptor)

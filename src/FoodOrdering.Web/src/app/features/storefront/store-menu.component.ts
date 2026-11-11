@@ -32,6 +32,15 @@ import { resolveImageUrl } from '../../core/utils/media-url';
               </span>
             </div>
             <p class="mt-1 text-sm text-slate-500">{{ activeStore.email }} · {{ activeStore.phone }}</p>
+            @if (activeStore.address || activeStore.openingHours) {
+              <p class="mt-1 text-xs text-slate-500">
+                {{ activeStore.address }}
+                @if (activeStore.address && activeStore.openingHours) {
+                  <span> · </span>
+                }
+                {{ activeStore.openingHours }}
+              </p>
+            }
             @if (!activeStore.isAcceptingOrders) {
               <p class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 This store is currently closed and not accepting new orders.

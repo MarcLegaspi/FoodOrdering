@@ -410,6 +410,13 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
                     NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<long>("Id"), 4L, null, null, null, null, null);
 
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasDefaultValue("");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -432,6 +439,13 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
+
+                    b.Property<string>("OpeningHours")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasDefaultValue("");
 
                     b.Property<string>("Phone")
                         .IsRequired()
@@ -463,11 +477,13 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         new
                         {
                             Id = 1L,
+                            Address = "101 Grill Ave, Downtown",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "hello@burgerbarn.local",
                             IsAcceptingOrders = true,
                             IsActive = true,
                             Name = "Burger Barn",
+                            OpeningHours = "Daily 10:00 AM - 10:00 PM",
                             Phone = "+1-555-0101",
                             PublicId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Slug = "burger-barn"
@@ -475,11 +491,13 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         new
                         {
                             Id = 2L,
+                            Address = "202 Brick Oven St, Midtown",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "hello@pizzapalace.local",
                             IsAcceptingOrders = true,
                             IsActive = true,
                             Name = "Pizza Palace",
+                            OpeningHours = "Daily 11:00 AM - 11:00 PM",
                             Phone = "+1-555-0102",
                             PublicId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Slug = "pizza-palace"
@@ -487,11 +505,13 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         new
                         {
                             Id = 3L,
+                            Address = "303 Harbor Way, Waterfront",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "hello@sushispot.local",
                             IsAcceptingOrders = true,
                             IsActive = true,
                             Name = "Sushi Spot",
+                            OpeningHours = "Tue-Sun 11:30 AM - 9:30 PM",
                             Phone = "+1-555-0103",
                             PublicId = new Guid("33333333-3333-3333-3333-333333333333"),
                             Slug = "sushi-spot"

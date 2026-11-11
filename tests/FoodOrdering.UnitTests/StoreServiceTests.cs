@@ -72,4 +72,37 @@ public sealed class StoreServiceTests
         Assert.NotNull(reopened);
         Assert.True(reopened.IsAcceptingOrders);
     }
+
+    [Fact]
+    public async Task UpdateCurrentStoreProfileAsync_Updates_Profile_And_Rejects_Blank_Name()
+    {
+        var tenant = new TestTenantContext(storeId: 1);
+        await using var db = TestDbFactory.Create(tenant);
+        await TestDbFactory.SeedTwoStoresAsync(db);
+
+        var service = new StoreService(db, tenant, new FakeUserDirectory());
+
+        var invalid = await service.UpdateCurrentStoreProfileAsync(new UpdateStoreProfileRequest(
+            Name: "   ",
+            Email: "new@burgerbarn.local",
+            Phone: "+1-555-9999",
+            Address: "99 Main St",
+            OpeningHours: "9 AM - 9 PM"));
+        Assert.NotNull(invalid.Error);
+
+        var updated = await service.UpdateCurrentStoreProfileAsync(new UpdateStoreProfileRequest(
+            Name: "Burger Barn Flagship",
+            Email: "new@burgerbarn.local",
+            Phone: "+1-555-9999",
+            Address: "99 Main St",
+            OpeningHours: "9 AM - 9 PM"));
+
+        Assert.Null(updated.Error);
+        Assert.NotNull(updated.Store);
+        Assert.Equal("Burger Barn Flagship", updated.Store!.Name);
+        Assert.Equal("new@burgerbarn.local", updated.Store.Email);
+        Assert.Equal("+1-555-9999", updated.Store.Phone);
+        Assert.Equal("99 Main St", updated.Store.Address);
+        Assert.Equal("9 AM - 9 PM", updated.Store.OpeningHours);
+    }
 }

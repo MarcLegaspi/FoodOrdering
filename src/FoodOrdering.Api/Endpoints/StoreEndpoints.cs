@@ -52,6 +52,26 @@ public static class StoreEndpoints
         })
         .RequireStoreRole(StoreRole.Manager);
 
+        group.MapPut("/current/profile", async (
+            UpdateStoreProfileRequest request,
+            StoreService storeService,
+            CancellationToken ct) =>
+        {
+            var result = await storeService.UpdateCurrentStoreProfileAsync(request, ct);
+            if (result.IsNotFound)
+            {
+                return Results.NotFound(new { error = result.Error });
+            }
+
+            if (result.Error is not null || result.Store is null)
+            {
+                return Results.BadRequest(new { error = result.Error });
+            }
+
+            return Results.Ok(result.Store);
+        })
+        .RequireStoreRole(StoreRole.Manager);
+
         return app;
     }
 }

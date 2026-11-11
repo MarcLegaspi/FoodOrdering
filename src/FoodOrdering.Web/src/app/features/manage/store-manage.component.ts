@@ -87,6 +87,13 @@ import { resolveImageUrl } from '../../core/utils/media-url';
             >
               Team
             </button>
+            <button
+              type="button"
+              (click)="tab.set('settings')"
+              [class]="tab() === 'settings' ? 'rounded-md bg-slate-900 px-3 py-1.5 text-white' : 'px-3 py-1.5 text-slate-600'"
+            >
+              Settings
+            </button>
           }
         </div>
       </div>
@@ -537,6 +544,78 @@ import { resolveImageUrl } from '../../core/utils/media-url';
           </div>
         </div>
       }
+
+      <!-- SETTINGS TAB (Manager/Owner only) -->
+      @if (tab() === 'settings' && isManager()) {
+        <div class="max-w-xl rounded-xl border border-slate-200 bg-white p-6">
+          <h2 class="font-bold text-slate-900">Store Profile & Contact Details</h2>
+          <p class="mt-1 text-xs text-slate-500">Shown to customers on the storefront and menu page.</p>
+
+          <form (ngSubmit)="saveStoreProfile()" class="mt-4 space-y-3">
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-700">Store Name</label>
+              <input
+                type="text"
+                name="storeName"
+                [(ngModel)]="storeName"
+                required
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-700">Contact Email</label>
+                <input
+                  type="email"
+                  name="storeEmail"
+                  [(ngModel)]="storeEmail"
+                  class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-700">Phone</label>
+                <input
+                  type="text"
+                  name="storePhone"
+                  [(ngModel)]="storePhone"
+                  class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-700">Address</label>
+              <input
+                type="text"
+                name="storeAddress"
+                [(ngModel)]="storeAddress"
+                placeholder="e.g. 123 Main St, Downtown"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-700">Opening Hours</label>
+              <input
+                type="text"
+                name="storeOpeningHours"
+                [(ngModel)]="storeOpeningHours"
+                placeholder="e.g. Daily 10:00 AM - 10:00 PM"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <button
+              type="submit"
+              [disabled]="savingProfile()"
+              class="rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+              {{ savingProfile() ? 'Saving...' : 'Save Store Profile' }}
+            </button>
+          </form>
+        </div>
+      }
     </div>
   `
 })
@@ -566,7 +645,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
 
   readonly storeSlug = signal('');
   readonly store = signal<Store | null>(null);
-  readonly tab = signal<'orders' | 'menu' | 'team'>('orders');
+  readonly tab = signal<'orders' | 'menu' | 'team' | 'settings'>('orders');
   readonly orders = signal<Order[]>([]);
   readonly orderStatusFilter = signal<OrderStatus | null>(null);
   readonly soundEnabled = signal(this.loadSoundPreference());
@@ -577,6 +656,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   readonly message = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly uploadingImage = signal(false);
+  readonly savingProfile = signal(false);
   readonly editingCategoryPublicId = signal<string | null>(null);
   readonly editingItemPublicId = signal<string | null>(null);
 
@@ -613,6 +693,12 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   memberFullName = '';
   memberPassword = '';
   memberRole = StoreRole.Staff;
+
+  storeName = '';
+  storeEmail = '';
+  storePhone = '';
+  storeAddress = '';
+  storeOpeningHours = '';
 
   ngOnInit(): void {
     this.liveSubscriptions.add(
@@ -789,7 +875,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     const nextValue = !activeStore.isAcceptingOrders;
     this.api.updateCurrentStoreSettings(nextValue).subscribe({
       next: (updated) => {
-        this.store.set(updated);
+        this.applyStoreProfile(updated);
         this.message.set(
           updated.isAcceptingOrders
             ? 'Store is now open and accepting orders.'
@@ -798,6 +884,30 @@ export class StoreManageComponent implements OnInit, OnDestroy {
       },
       error: (err) => this.setError(err, 'Could not update store settings.')
     });
+  }
+
+  saveStoreProfile(): void {
+    this.clearAlerts();
+    this.savingProfile.set(true);
+    this.api
+      .updateCurrentStoreProfile({
+        name: this.storeName,
+        email: this.storeEmail,
+        phone: this.storePhone,
+        address: this.storeAddress,
+        openingHours: this.storeOpeningHours
+      })
+      .subscribe({
+        next: (updated) => {
+          this.applyStoreProfile(updated);
+          this.savingProfile.set(false);
+          this.message.set('Store profile updated.');
+        },
+        error: (err) => {
+          this.savingProfile.set(false);
+          this.setError(err, 'Could not update store profile.');
+        }
+      });
   }
 
   onMenuImageSelected(event: Event): void {
@@ -948,11 +1058,20 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     const slug = this.storeSlug();
     if (slug) {
       this.api.getStoreBySlug(slug).subscribe({
-        next: (store) => this.store.set(store)
+        next: (store) => this.applyStoreProfile(store)
       });
     }
     this.refreshOrders();
     this.refreshMenu();
+  }
+
+  private applyStoreProfile(store: Store): void {
+    this.store.set(store);
+    this.storeName = store.name;
+    this.storeEmail = store.email;
+    this.storePhone = store.phone;
+    this.storeAddress = store.address;
+    this.storeOpeningHours = store.openingHours;
   }
 
   private refreshOrders(): void {
