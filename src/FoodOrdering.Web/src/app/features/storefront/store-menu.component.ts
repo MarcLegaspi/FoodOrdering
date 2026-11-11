@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { CartService } from '../../core/cart/cart.service';
-import { Category, MenuItem, Store } from '../../core/models/api.models';
+import { Category, MenuItem, OrderType, Store } from '../../core/models/api.models';
 import { FoodOrderingApiService } from '../../core/services/food-ordering-api.service';
 import { TenantService } from '../../core/tenant/tenant.service';
 
@@ -117,6 +117,39 @@ import { TenantService } from '../../core/tenant/tenant.service';
             </div>
 
             <div class="mt-4 space-y-3 border-t border-slate-200 pt-4">
+              <div class="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1 text-xs font-semibold">
+                <button
+                  type="button"
+                  (click)="orderType.set(OrderType.Pickup)"
+                  [class]="orderType() === OrderType.Pickup ? 'rounded-md bg-white py-1.5 text-slate-900 shadow-xs' : 'py-1.5 text-slate-500'"
+                >
+                  Pickup
+                </button>
+                <button
+                  type="button"
+                  (click)="orderType.set(OrderType.Delivery)"
+                  [class]="orderType() === OrderType.Delivery ? 'rounded-md bg-white py-1.5 text-slate-900 shadow-xs' : 'py-1.5 text-slate-500'"
+                >
+                  Delivery
+                </button>
+              </div>
+
+              <input
+                type="tel"
+                [(ngModel)]="customerPhone"
+                placeholder="Contact phone number"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+              />
+
+              @if (orderType() === OrderType.Delivery) {
+                <textarea
+                  rows="2"
+                  [(ngModel)]="deliveryAddress"
+                  placeholder="Delivery address (street, unit, landmarks)"
+                  class="w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-slate-900 focus:outline-none"
+                ></textarea>
+              }
+
               <textarea
                 rows="2"
                 [(ngModel)]="notes"
@@ -169,6 +202,10 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
   readonly error = signal<string | null>(null);
   readonly orderError = signal<string | null>(null);
   readonly submitting = signal(false);
+  readonly OrderType = OrderType;
+  readonly orderType = signal<OrderType>(OrderType.Pickup);
+  customerPhone = '';
+  deliveryAddress = '';
   notes = '';
 
   readonly groupedMenu = computed(() => {
@@ -206,6 +243,19 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
 
   checkout(): void {
     this.orderError.set(null);
+
+    const phone = this.customerPhone.trim();
+    if (!phone) {
+      this.orderError.set('Please enter your contact phone number.');
+      return;
+    }
+
+    const address = this.deliveryAddress.trim();
+    if (this.orderType() === OrderType.Delivery && !address) {
+      this.orderError.set('Please enter your delivery address.');
+      return;
+    }
+
     this.submitting.set(true);
 
     this.api
@@ -214,6 +264,9 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
           menuItemPublicId: i.menuItemPublicId,
           quantity: i.quantity
         })),
+        orderType: this.orderType(),
+        customerPhone: phone,
+        deliveryAddress: this.orderType() === OrderType.Delivery ? address : null,
         notes: this.notes
       })
       .subscribe({

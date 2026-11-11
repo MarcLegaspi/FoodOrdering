@@ -40,6 +40,8 @@ public sealed class OrderTests
                     new OrderItemInput(burgerPublicId, 2),
                     new OrderItemInput(burgerPublicId, 1)
                 ],
+                OrderType.Pickup,
+                CustomerPhone: "+1-555-0199",
                 Notes: "No onions"));
 
             Assert.NotNull(placed.Order);
@@ -91,11 +93,15 @@ public sealed class OrderTests
         var orderService = new OrderService(db, tenant, customer);
 
         var unavailableResult = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
-            [new OrderItemInput(unavailableItem.PublicId, 1)]));
+            [new OrderItemInput(unavailableItem.PublicId, 1)],
+            OrderType.Pickup,
+            CustomerPhone: "+1-555-0199"));
         Assert.Contains("unavailable", unavailableResult.Error, StringComparison.OrdinalIgnoreCase);
 
         var crossTenantResult = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
-            [new OrderItemInput(store2Item.PublicId, 1)]));
+            [new OrderItemInput(store2Item.PublicId, 1)],
+            OrderType.Pickup,
+            CustomerPhone: "+1-555-0199"));
         Assert.True(crossTenantResult.IsNotFound);
     }
 
@@ -121,7 +127,10 @@ public sealed class OrderTests
             db, tenant, new TestCurrentUser(customer2Id, isAuthenticated: true, "Customer"));
 
         var order1 = (await customer1Service.PlaceOrderAsync(
-            new PlaceOrderRequest([new OrderItemInput(taco.PublicId, 2)]))).Order!;
+            new PlaceOrderRequest(
+                [new OrderItemInput(taco.PublicId, 2)],
+                OrderType.Pickup,
+                CustomerPhone: "+1-555-0199"))).Order!;
 
         // Other customer cannot cancel customer1's order
         var hijackAttempt = await customer2Service.CancelMyOrderAsync(order1.PublicId);
@@ -146,5 +155,54 @@ public sealed class OrderTests
         tenant.StoreId = 2;
         var store2Orders = await new OrderService(db, tenant, new TestCurrentUser()).GetStoreOrdersAsync();
         Assert.Empty(store2Orders);
+    }
+
+    [Fact]
+    public async Task PlaceOrder_Validates_Fulfillment_Details()
+    {
+        var tenant = new TestTenantContext(storeId: 1);
+        await using var db = TestDbFactory.Create(tenant);
+        await TestDbFactory.SeedTwoStoresAsync(db);
+
+        var category = (await new CategoryService(db, tenant)
+            .CreateAsync(new CreateCategoryRequest("Burgers", 1))).Category!;
+        var burger = (await new MenuItemService(db, tenant)
+            .CreateAsync(new CreateMenuItemRequest(
+                category.PublicId, "Cheeseburger", "Classic", 9.99m))).Item!;
+
+        var customer = new TestCurrentUser(Guid.NewGuid(), isAuthenticated: true, "Customer");
+        var orderService = new OrderService(db, tenant, customer);
+
+        var missingPhone = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(burger.PublicId, 1)],
+            OrderType.Pickup,
+            CustomerPhone: ""));
+        Assert.Contains("phone", missingPhone.Error, StringComparison.OrdinalIgnoreCase);
+
+        var missingAddress = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(burger.PublicId, 1)],
+            OrderType.Delivery,
+            CustomerPhone: "09171234567",
+            DeliveryAddress: "  "));
+        Assert.Contains("address", missingAddress.Error, StringComparison.OrdinalIgnoreCase);
+
+        var pickupClearsAddress = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(burger.PublicId, 1)],
+            OrderType.Pickup,
+            CustomerPhone: "09171234567",
+            DeliveryAddress: "Should be ignored"));
+        Assert.NotNull(pickupClearsAddress.Order);
+        Assert.Equal(OrderType.Pickup, pickupClearsAddress.Order.OrderType);
+        Assert.Null(pickupClearsAddress.Order.DeliveryAddress);
+
+        var delivery = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(burger.PublicId, 1)],
+            OrderType.Delivery,
+            CustomerPhone: "09171234567",
+            DeliveryAddress: "123 Main St, Makati"));
+        Assert.NotNull(delivery.Order);
+        Assert.Equal(OrderType.Delivery, delivery.Order.OrderType);
+        Assert.Equal("09171234567", delivery.Order.CustomerPhone);
+        Assert.Equal("123 Main St, Makati", delivery.Order.DeliveryAddress);
     }
 }

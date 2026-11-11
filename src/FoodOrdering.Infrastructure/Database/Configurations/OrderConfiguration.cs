@@ -30,6 +30,18 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Status)
             .IsRequired();
 
+        builder.Property(o => o.OrderType)
+            .IsRequired()
+            .HasDefaultValue(OrderType.Pickup);
+
+        builder.Property(o => o.CustomerPhone)
+            .IsRequired()
+            .HasMaxLength(50)
+            .HasDefaultValue(string.Empty);
+
+        builder.Property(o => o.DeliveryAddress)
+            .HasMaxLength(500);
+
         builder.Property(o => o.TotalAmount)
             .IsRequired()
             .HasPrecision(18, 2);

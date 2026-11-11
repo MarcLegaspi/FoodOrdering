@@ -136,6 +136,9 @@ X-Store-Slug: taco-town
       "quantity": 2
     }
   ],
+  "orderType": 2,
+  "customerPhone": "+1-555-0199",
+  "deliveryAddress": "123 Main St, Apt 4B",
   "notes": "Extra lime please"
 }
 

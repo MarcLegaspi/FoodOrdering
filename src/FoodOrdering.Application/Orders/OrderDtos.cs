@@ -8,6 +8,9 @@ public sealed record OrderItemInput(
 
 public sealed record PlaceOrderRequest(
     IReadOnlyList<OrderItemInput> Items,
+    OrderType OrderType = OrderType.Pickup,
+    string CustomerPhone = "",
+    string? DeliveryAddress = null,
     string? Notes = null);
 
 public sealed record UpdateOrderStatusRequest(OrderStatus Status);
@@ -25,6 +28,9 @@ public sealed record OrderResponse(
     string StoreName,
     string OrderNumber,
     OrderStatus Status,
+    OrderType OrderType,
+    string CustomerPhone,
+    string? DeliveryAddress,
     decimal TotalAmount,
     string Notes,
     DateTime CreatedAtUtc,

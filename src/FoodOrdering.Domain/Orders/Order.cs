@@ -19,6 +19,12 @@ public sealed class Order : AuditableEntity, ITenantEntity
 
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
+    public OrderType OrderType { get; set; } = OrderType.Pickup;
+
+    public string CustomerPhone { get; set; } = string.Empty;
+
+    public string? DeliveryAddress { get; set; }
+
     public decimal TotalAmount { get; set; }
 
     public string Notes { get; set; } = string.Empty;

@@ -8,9 +8,11 @@ import {
   MenuItem,
   Order,
   OrderStatus,
+  OrderType,
   StoreMember,
   StoreRole,
   orderStatusLabel,
+  orderTypeLabel,
   storeRoleLabel
 } from '../../core/models/api.models';
 import { FoodOrderingApiService } from '../../core/services/food-ordering-api.service';
@@ -78,11 +80,24 @@ import { TenantService } from '../../core/tenant/tenant.service';
                   <span class="ml-2 text-xs text-slate-400">{{ order.createdAtUtc | date: 'short' }}</span>
                 </div>
                 <div class="flex items-center gap-3">
+                  <span class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                    {{ orderTypeText(order.orderType) }}
+                  </span>
                   <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                     {{ statusText(order.status) }}
                   </span>
                   <span class="font-bold text-slate-900">{{ order.totalAmount | currency }}</span>
                 </div>
+              </div>
+
+              <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                <span>Phone: {{ order.customerPhone }}</span>
+                @if (order.deliveryAddress) {
+                  <span>Deliver to: {{ order.deliveryAddress }}</span>
+                }
+                @if (order.notes) {
+                  <span>Notes: {{ order.notes }}</span>
+                }
               </div>
 
               <ul class="mt-3 space-y-1 text-sm text-slate-600">
@@ -409,6 +424,10 @@ export class StoreManageComponent implements OnInit, OnDestroy {
 
   statusText(status: OrderStatus): string {
     return orderStatusLabel(status);
+  }
+
+  orderTypeText(type: OrderType): string {
+    return orderTypeLabel(type);
   }
 
   roleText(role: StoreRole): string {

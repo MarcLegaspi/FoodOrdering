@@ -31,6 +31,26 @@ public sealed class OrderService(
             return OrderResult.ValidationError("All item quantities must be at least 1.");
         }
 
+        if (!Enum.IsDefined(request.OrderType))
+        {
+            return OrderResult.ValidationError("Invalid order type.");
+        }
+
+        var customerPhone = request.CustomerPhone?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(customerPhone))
+        {
+            return OrderResult.ValidationError("Customer phone number is required.");
+        }
+
+        var deliveryAddress = request.OrderType == OrderType.Delivery
+            ? request.DeliveryAddress?.Trim()
+            : null;
+
+        if (request.OrderType == OrderType.Delivery && string.IsNullOrWhiteSpace(deliveryAddress))
+        {
+            return OrderResult.ValidationError("Delivery address is required for delivery orders.");
+        }
+
         // Merge duplicate menu item lines so each menu item appears once per order
         var quantitiesByPublicId = request.Items
             .GroupBy(i => i.MenuItemPublicId)
@@ -72,6 +92,9 @@ public sealed class OrderService(
             CustomerUserId = customerUserId,
             OrderNumber = GenerateOrderNumber(),
             Status = OrderStatus.Pending,
+            OrderType = request.OrderType,
+            CustomerPhone = customerPhone,
+            DeliveryAddress = deliveryAddress,
             Notes = request.Notes?.Trim() ?? string.Empty
         };
 
@@ -102,6 +125,9 @@ public sealed class OrderService(
             store.Name,
             order.OrderNumber,
             order.Status,
+            order.OrderType,
+            order.CustomerPhone,
+            order.DeliveryAddress,
             order.TotalAmount,
             order.Notes,
             order.CreatedAtUtc,
@@ -245,6 +271,9 @@ public sealed class OrderService(
             o.Store.Name,
             o.OrderNumber,
             o.Status,
+            o.OrderType,
+            o.CustomerPhone,
+            o.DeliveryAddress,
             o.TotalAmount,
             o.Notes,
             o.CreatedAtUtc,
@@ -262,6 +291,9 @@ public sealed class OrderService(
             order.Store.Name,
             order.OrderNumber,
             order.Status,
+            order.OrderType,
+            order.CustomerPhone,
+            order.DeliveryAddress,
             order.TotalAmount,
             order.Notes,
             order.CreatedAtUtc,

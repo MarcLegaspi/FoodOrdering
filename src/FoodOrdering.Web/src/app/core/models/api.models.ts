@@ -13,6 +13,11 @@ export enum OrderStatus {
   Cancelled = 6
 }
 
+export enum OrderType {
+  Pickup = 1,
+  Delivery = 2
+}
+
 export interface ManagedStore {
   storePublicId: string;
   slug: string;
@@ -99,6 +104,9 @@ export interface Order {
   storeName: string;
   orderNumber: string;
   status: OrderStatus;
+  orderType: OrderType;
+  customerPhone: string;
+  deliveryAddress: string | null;
   totalAmount: number;
   notes: string;
   createdAtUtc: string;
@@ -107,6 +115,9 @@ export interface Order {
 
 export interface PlaceOrderRequest {
   items: { menuItemPublicId: string; quantity: number }[];
+  orderType: OrderType;
+  customerPhone: string;
+  deliveryAddress?: string | null;
   notes?: string | null;
 }
 
@@ -123,6 +134,10 @@ export interface AddStoreMemberRequest {
   role: StoreRole;
   fullName?: string | null;
   password?: string | null;
+}
+
+export function orderTypeLabel(orderType: OrderType): string {
+  return orderType === OrderType.Delivery ? 'Delivery' : 'Pickup';
 }
 
 export function orderStatusLabel(status: OrderStatus): string {
