@@ -64,6 +64,28 @@ public static class MenuItemEndpoints
         })
         .RequireStoreRole(StoreRole.Staff);
 
+        group.MapPost("/upload-image", async (
+            IFormFile? file,
+            MenuItemImageService imageService,
+            CancellationToken ct) =>
+        {
+            if (file is null)
+            {
+                return Results.BadRequest(new { error = "Image file is required." });
+            }
+
+            await using var stream = file.OpenReadStream();
+            var result = await imageService.UploadAsync(file.FileName, file.Length, stream, ct);
+            if (result.Error is not null || result.ImageUrl is null)
+            {
+                return Results.BadRequest(new { error = result.Error });
+            }
+
+            return Results.Ok(new { imageUrl = result.ImageUrl });
+        })
+        .RequireStoreRole(StoreRole.Staff)
+        .DisableAntiforgery();
+
         return app;
     }
 

@@ -4,6 +4,7 @@ using FoodOrdering.Application.Common.Interfaces;
 using FoodOrdering.Infrastructure.Database;
 using FoodOrdering.Infrastructure.Identity;
 using FoodOrdering.Infrastructure.MultiTenancy;
+using FoodOrdering.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -69,6 +70,9 @@ public static class DependencyInjection
         services.AddScoped<JwtTokenGenerator>();
         services.AddScoped<IUserDirectory, IdentityUserDirectory>();
         services.AddScoped<IAuthService, IdentityAuthService>();
+
+        services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
+        services.AddScoped<IImageStorageService, LocalFileImageStorageService>();
 
         return services;
     }

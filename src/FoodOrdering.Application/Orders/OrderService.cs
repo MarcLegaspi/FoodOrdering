@@ -78,12 +78,17 @@ public sealed class OrderService(
         var store = await db.Stores
             .AsNoTracking()
             .Where(s => s.Id == storeId)
-            .Select(s => new { s.Slug, s.Name })
+            .Select(s => new { s.Slug, s.Name, s.IsAcceptingOrders })
             .FirstOrDefaultAsync(ct);
 
         if (store is null)
         {
             return OrderResult.NotFound("Active store was not found.");
+        }
+
+        if (!store.IsAcceptingOrders)
+        {
+            return OrderResult.ValidationError($"'{store.Name}' is currently closed and not accepting orders.");
         }
 
         var order = new Order

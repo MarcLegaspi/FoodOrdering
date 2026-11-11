@@ -43,6 +43,10 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
             .IsRequired()
             .HasDefaultValue(true);
 
+        builder.Property(s => s.IsAcceptingOrders)
+            .IsRequired()
+            .HasDefaultValue(true);
+
         var seedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         builder.HasData(
@@ -55,6 +59,7 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
                 Email = "hello@burgerbarn.local",
                 Phone = "+1-555-0101",
                 IsActive = true,
+                IsAcceptingOrders = true,
                 CreatedAtUtc = seedDate
             },
             new Store
@@ -66,6 +71,7 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
                 Email = "hello@pizzapalace.local",
                 Phone = "+1-555-0102",
                 IsActive = true,
+                IsAcceptingOrders = true,
                 CreatedAtUtc = seedDate
             },
             new Store
@@ -77,6 +83,7 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
                 Email = "hello@sushispot.local",
                 Phone = "+1-555-0103",
                 IsActive = true,
+                IsAcceptingOrders = true,
                 CreatedAtUtc = seedDate
             });
     }

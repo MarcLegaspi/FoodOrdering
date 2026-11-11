@@ -33,6 +33,10 @@ export class FoodOrderingApiService {
     return this.http.post<Store>(`${this.api}/stores`, payload);
   }
 
+  updateCurrentStoreSettings(isAcceptingOrders: boolean): Observable<Store> {
+    return this.http.patch<Store>(`${this.api}/stores/current/settings`, { isAcceptingOrders });
+  }
+
   // Categories (uses X-Store-Slug via tenantInterceptor)
   getCategories(): Observable<Category[]> {
     return this.http.get<Category[]>(`${this.api}/categories`);
@@ -40,6 +44,18 @@ export class FoodOrderingApiService {
 
   createCategory(name: string, sortOrder: number): Observable<Category> {
     return this.http.post<Category>(`${this.api}/categories`, { name, sortOrder });
+  }
+
+  updateCategory(publicId: string, name: string, sortOrder: number, isActive = true): Observable<Category> {
+    return this.http.put<Category>(`${this.api}/categories/${publicId}`, { name, sortOrder, isActive });
+  }
+
+  reorderCategories(orderedPublicIds: string[]): Observable<Category[]> {
+    return this.http.put<Category[]>(`${this.api}/categories/reorder`, { orderedPublicIds });
+  }
+
+  deleteCategory(publicId: string): Observable<void> {
+    return this.http.delete<void>(`${this.api}/categories/${publicId}`);
   }
 
   // Menu Items (uses X-Store-Slug via tenantInterceptor)

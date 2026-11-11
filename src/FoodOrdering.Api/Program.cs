@@ -5,6 +5,8 @@ using FoodOrdering.Application;
 using FoodOrdering.Application.Common.Interfaces;
 using FoodOrdering.Infrastructure;
 using FoodOrdering.Infrastructure.Identity;
+using FoodOrdering.Infrastructure.Storage;
+using Microsoft.Extensions.FileProviders;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -42,6 +44,17 @@ else
 }
 
 app.UseCors("Frontend");
+
+var storageOptions = app.Configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>()
+    ?? new StorageOptions();
+var uploadsRoot = StorageOptions.ResolveUploadsRoot(storageOptions, app.Environment.ContentRootPath);
+Directory.CreateDirectory(uploadsRoot);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsRoot),
+    RequestPath = "/uploads"
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<TenantResolutionMiddleware>();

@@ -9,6 +9,8 @@ public sealed record CreateStoreRequest(
     string? OwnerFullName = null,
     string? OwnerPassword = null);
 
+public sealed record UpdateStoreSettingsRequest(bool IsAcceptingOrders);
+
 public sealed record StoreResponse(
     Guid PublicId,
     string Slug,
@@ -16,4 +18,5 @@ public sealed record StoreResponse(
     string Email,
     string Phone,
     bool IsActive,
+    bool IsAcceptingOrders,
     DateTime CreatedAtUtc);

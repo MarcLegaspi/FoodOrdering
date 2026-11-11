@@ -7,6 +7,7 @@ import { CartService } from '../../core/cart/cart.service';
 import { Category, MenuItem, OrderType, Store } from '../../core/models/api.models';
 import { FoodOrderingApiService } from '../../core/services/food-ordering-api.service';
 import { TenantService } from '../../core/tenant/tenant.service';
+import { resolveImageUrl } from '../../core/utils/media-url';
 
 @Component({
   selector: 'app-store-menu',
@@ -21,13 +22,60 @@ import { TenantService } from '../../core/tenant/tenant.service';
         <!-- Menu Section -->
         <div class="space-y-6 lg:col-span-2">
           <div class="rounded-xl border border-slate-200 bg-white p-6">
-            <h1 class="text-2xl font-bold text-slate-900">{{ activeStore.name }}</h1>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h1 class="text-2xl font-bold text-slate-900">{{ activeStore.name }}</h1>
+              <span
+                class="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                [class]="activeStore.isAcceptingOrders ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'"
+              >
+                {{ activeStore.isAcceptingOrders ? 'Accepting Orders' : 'Closed' }}
+              </span>
+            </div>
             <p class="mt-1 text-sm text-slate-500">{{ activeStore.email }} · {{ activeStore.phone }}</p>
+            @if (!activeStore.isAcceptingOrders) {
+              <p class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                This store is currently closed and not accepting new orders.
+              </p>
+            }
           </div>
+
+          @if (menuItems().length > 0) {
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  (click)="selectedCategoryId.set(null)"
+                  class="rounded-full px-3 py-1.5 text-xs font-medium transition"
+                  [class]="selectedCategoryId() === null ? 'bg-slate-900 text-white' : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
+                >
+                  All
+                </button>
+                @for (cat of categories(); track cat.publicId) {
+                  <button
+                    type="button"
+                    (click)="selectedCategoryId.set(cat.publicId)"
+                    class="rounded-full px-3 py-1.5 text-xs font-medium transition"
+                    [class]="selectedCategoryId() === cat.publicId ? 'bg-slate-900 text-white' : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
+                  >
+                    {{ cat.name }}
+                  </button>
+                }
+              </div>
+
+              <input
+                type="search"
+                name="searchQuery"
+                [ngModel]="searchQuery()"
+                (ngModelChange)="searchQuery.set($event)"
+                placeholder="Search menu..."
+                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm sm:w-56"
+              />
+            </div>
+          }
 
           @if (groupedMenu().length === 0) {
             <div class="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-              No menu items available yet.
+              {{ menuItems().length > 0 ? 'No menu items match your filter.' : 'No menu items available yet.' }}
             </div>
           }
 
@@ -38,9 +86,9 @@ import { TenantService } from '../../core/tenant/tenant.service';
               <div class="grid gap-3 sm:grid-cols-2">
                 @for (item of group.items; track item.publicId) {
                   <div class="flex flex-col justify-between overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                    @if (item.imageUrl) {
+                    @if (imageUrl(item.imageUrl); as src) {
                       <img
-                        [src]="item.imageUrl"
+                        [src]="src"
                         [alt]="item.name"
                         class="h-44 w-full object-cover"
                       />
@@ -63,10 +111,11 @@ import { TenantService } from '../../core/tenant/tenant.service';
 
                       <button
                         type="button"
+                        [disabled]="!activeStore.isAcceptingOrders || !item.isAvailable"
                         (click)="cart.addItem(item)"
-                        class="mt-4 w-full rounded-lg border border-slate-300 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
+                        class="mt-4 w-full rounded-lg border border-slate-300 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Add to cart
+                        {{ !activeStore.isAcceptingOrders ? 'Store Closed' : (!item.isAvailable ? 'Sold Out' : 'Add to cart') }}
                       </button>
                     </div>
                   </div>
@@ -165,11 +214,11 @@ import { TenantService } from '../../core/tenant/tenant.service';
               @if (auth.isAuthenticated()) {
                 <button
                   type="button"
-                  [disabled]="submitting()"
+                  [disabled]="submitting() || !activeStore.isAcceptingOrders"
                   (click)="checkout()"
-                  class="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                  class="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {{ submitting() ? 'Placing order...' : 'Place Order' }}
+                  {{ !activeStore.isAcceptingOrders ? 'Store Closed' : (submitting() ? 'Placing order...' : 'Place Order') }}
                 </button>
               } @else {
                 <a
@@ -202,14 +251,35 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
   readonly error = signal<string | null>(null);
   readonly orderError = signal<string | null>(null);
   readonly submitting = signal(false);
+  readonly selectedCategoryId = signal<string | null>(null);
+  readonly searchQuery = signal('');
   readonly OrderType = OrderType;
+  readonly imageUrl = resolveImageUrl;
   readonly orderType = signal<OrderType>(OrderType.Pickup);
   customerPhone = '';
   deliveryAddress = '';
   notes = '';
 
   readonly groupedMenu = computed(() => {
-    const items = this.menuItems();
+    const categoryId = this.selectedCategoryId();
+    const query = this.searchQuery().trim().toLowerCase();
+
+    const items = this.menuItems().filter((item) => {
+      if (categoryId && item.categoryPublicId !== categoryId) {
+        return false;
+      }
+
+      if (query) {
+        const matchesName = item.name.toLowerCase().includes(query);
+        const matchesDescription = item.description.toLowerCase().includes(query);
+        if (!matchesName && !matchesDescription) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
     const map = new Map<string, MenuItem[]>();
 
     for (const item of items) {

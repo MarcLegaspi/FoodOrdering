@@ -9,6 +9,8 @@ import {
   Order,
   OrderStatus,
   OrderType,
+  SaveMenuItemRequest,
+  Store,
   StoreMember,
   StoreRole,
   orderStatusLabel,
@@ -17,6 +19,7 @@ import {
 } from '../../core/models/api.models';
 import { FoodOrderingApiService } from '../../core/services/food-ordering-api.service';
 import { TenantService } from '../../core/tenant/tenant.service';
+import { resolveImageUrl } from '../../core/utils/media-url';
 
 @Component({
   selector: 'app-store-manage',
@@ -29,7 +32,30 @@ import { TenantService } from '../../core/tenant/tenant.service';
           <p class="mt-1 text-sm text-slate-500">Store dashboard for orders, menu, and team members.</p>
         </div>
 
-        <div class="flex gap-2 rounded-lg border border-slate-200 bg-white p-1 text-sm font-medium">
+        <div class="flex flex-wrap items-center gap-3">
+          @if (store(); as activeStore) {
+            @if (isManager()) {
+              <button
+                type="button"
+                (click)="toggleAcceptingOrders()"
+                class="rounded-lg border px-3 py-1.5 text-sm font-medium transition"
+                [class]="activeStore.isAcceptingOrders
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'"
+              >
+                {{ activeStore.isAcceptingOrders ? 'Accepting Orders: Open' : 'Accepting Orders: Closed' }}
+              </button>
+            } @else {
+              <span
+                class="rounded-full px-2.5 py-1 text-xs font-medium"
+                [class]="activeStore.isAcceptingOrders ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'"
+              >
+                {{ activeStore.isAcceptingOrders ? 'Open' : 'Closed' }}
+              </span>
+            }
+          }
+
+          <div class="flex gap-2 rounded-lg border border-slate-200 bg-white p-1 text-sm font-medium">
           <button
             type="button"
             (click)="tab.set('orders')"
@@ -162,15 +188,15 @@ import { TenantService } from '../../core/tenant/tenant.service';
       @if (tab() === 'menu') {
         <div class="grid gap-6 lg:grid-cols-2">
           <div class="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 class="font-bold text-slate-900">Add Category</h2>
-            <form (ngSubmit)="createCategory()" class="mt-3 flex gap-2">
+            <h2 class="font-bold text-slate-900">{{ editingCategoryPublicId() ? 'Edit Category' : 'Add Category' }}</h2>
+            <form (ngSubmit)="saveCategory()" class="mt-3 flex flex-wrap gap-2">
               <input
                 type="text"
                 name="categoryName"
                 [(ngModel)]="categoryName"
                 placeholder="e.g. Burgers"
                 required
-                class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
               />
               <input
                 type="number"
@@ -182,23 +208,68 @@ import { TenantService } from '../../core/tenant/tenant.service';
                 type="submit"
                 class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
               >
-                Add
+                {{ editingCategoryPublicId() ? 'Save' : 'Add' }}
               </button>
+              @if (editingCategoryPublicId()) {
+                <button
+                  type="button"
+                  (click)="cancelCategoryEdit()"
+                  class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+              }
             </form>
 
             <ul class="mt-4 divide-y divide-slate-100 text-sm">
-              @for (cat of categories(); track cat.publicId) {
-                <li class="flex justify-between py-2">
-                  <span class="font-medium text-slate-800">{{ cat.name }}</span>
-                  <span class="text-slate-400">Sort: {{ cat.sortOrder }}</span>
+              @for (cat of categories(); track cat.publicId; let i = $index) {
+                <li class="flex items-center justify-between gap-3 py-2">
+                  <div>
+                    <span class="font-medium text-slate-800">{{ cat.name }}</span>
+                    <span class="ml-2 text-xs text-slate-400">Sort: {{ cat.sortOrder }}</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      [disabled]="i === 0"
+                      (click)="moveCategory(i, -1)"
+                      title="Move up"
+                      class="rounded border border-slate-300 px-2 py-0.5 text-xs disabled:opacity-40"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      [disabled]="i === categories().length - 1"
+                      (click)="moveCategory(i, 1)"
+                      title="Move down"
+                      class="rounded border border-slate-300 px-2 py-0.5 text-xs disabled:opacity-40"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      (click)="startEditCategory(cat)"
+                      class="rounded border border-slate-300 px-2.5 py-0.5 text-xs"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      (click)="deleteCategory(cat.publicId)"
+                      class="rounded border border-red-200 px-2.5 py-0.5 text-xs text-red-700"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </li>
               }
             </ul>
           </div>
 
           <div class="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 class="font-bold text-slate-900">Add Menu Item</h2>
-            <form (ngSubmit)="createMenuItem()" class="mt-3 space-y-3">
+            <h2 class="font-bold text-slate-900">{{ editingItemPublicId() ? 'Edit Menu Item' : 'Add Menu Item' }}</h2>
+            <form (ngSubmit)="saveMenuItem()" class="mt-3 space-y-3">
               <select
                 name="selectedCategoryId"
                 [(ngModel)]="selectedCategoryId"
@@ -239,20 +310,60 @@ import { TenantService } from '../../core/tenant/tenant.service';
                 class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               />
 
-              <input
-                type="text"
-                name="itemImageUrl"
-                [(ngModel)]="itemImageUrl"
-                placeholder="Image URL (optional, e.g. /images/menu/cheeseburger.jpg)"
-                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
+              <div class="space-y-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <label class="cursor-pointer rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100">
+                    {{ uploadingImage() ? 'Uploading...' : 'Upload Image' }}
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.webp,.gif"
+                      [disabled]="uploadingImage()"
+                      (change)="onMenuImageSelected($event)"
+                      class="hidden"
+                    />
+                  </label>
+                  @if (imageUrl(itemImageUrl); as previewSrc) {
+                    <img
+                      [src]="previewSrc"
+                      alt="Menu item preview"
+                      class="h-10 w-10 rounded-md border border-slate-200 object-cover"
+                    />
+                    <button
+                      type="button"
+                      (click)="itemImageUrl = ''"
+                      class="text-xs text-slate-500 hover:text-slate-800"
+                    >
+                      Clear
+                    </button>
+                  }
+                </div>
+                <input
+                  type="text"
+                  name="itemImageUrl"
+                  [(ngModel)]="itemImageUrl"
+                  placeholder="Or paste image URL (e.g. /images/menu/cheeseburger.jpg)"
+                  class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+              </div>
 
-              <button
-                type="submit"
-                class="w-full rounded-lg bg-slate-900 py-2 text-sm font-semibold text-white"
-              >
-                Add Menu Item
-              </button>
+              <div class="flex gap-2">
+                <button
+                  type="submit"
+                  [disabled]="uploadingImage()"
+                  class="flex-1 rounded-lg bg-slate-900 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {{ editingItemPublicId() ? 'Save Changes' : 'Add Menu Item' }}
+                </button>
+                @if (editingItemPublicId()) {
+                  <button
+                    type="button"
+                    (click)="cancelEdit()"
+                    class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                }
+              </div>
             </form>
           </div>
         </div>
@@ -263,9 +374,9 @@ import { TenantService } from '../../core/tenant/tenant.service';
             @for (item of menuItems(); track item.publicId) {
               <div class="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
                 <div class="flex items-center gap-3">
-                  @if (item.imageUrl) {
+                  @if (imageUrl(item.imageUrl); as src) {
                     <img
-                      [src]="item.imageUrl"
+                      [src]="src"
                       [alt]="item.name"
                       class="h-10 w-10 rounded-md object-cover"
                     />
@@ -277,6 +388,13 @@ import { TenantService } from '../../core/tenant/tenant.service';
                 </div>
                 <div class="flex items-center gap-3">
                   <span class="font-medium text-slate-900">{{ item.price | currency }}</span>
+                  <button
+                    type="button"
+                    (click)="startEdit(item)"
+                    class="rounded border border-slate-300 px-2.5 py-1 text-xs"
+                  >
+                    Edit
+                  </button>
                   <button
                     type="button"
                     (click)="toggleAvailability(item)"
@@ -381,8 +499,10 @@ export class StoreManageComponent implements OnInit, OnDestroy {
 
   readonly OrderStatus = OrderStatus;
   readonly StoreRole = StoreRole;
+  readonly imageUrl = resolveImageUrl;
 
   readonly storeSlug = signal('');
+  readonly store = signal<Store | null>(null);
   readonly tab = signal<'orders' | 'menu' | 'team'>('orders');
   readonly orders = signal<Order[]>([]);
   readonly categories = signal<Category[]>([]);
@@ -390,6 +510,9 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   readonly members = signal<StoreMember[]>([]);
   readonly message = signal<string | null>(null);
   readonly error = signal<string | null>(null);
+  readonly uploadingImage = signal(false);
+  readonly editingCategoryPublicId = signal<string | null>(null);
+  readonly editingItemPublicId = signal<string | null>(null);
 
   readonly isManager = computed(() =>
     this.auth.hasStoreRole(this.storeSlug(), StoreRole.Manager)
@@ -403,6 +526,8 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   itemDescription = '';
   itemPrice = 0;
   itemImageUrl = '';
+  itemIsAvailable = true;
+  itemSortOrder = 0;
 
   memberEmail = '';
   memberFullName = '';
@@ -414,6 +539,8 @@ export class StoreManageComponent implements OnInit, OnDestroy {
       const slug = params.get('storeSlug') ?? '';
       this.storeSlug.set(slug);
       this.tenant.setStoreSlug(slug);
+      this.cancelCategoryEdit();
+      this.cancelEdit();
       this.refreshAll();
     });
   }
@@ -438,7 +565,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     this.tab.set('team');
     this.api.getStoreMembers().subscribe({
       next: (list) => this.members.set(list),
-      error: (err) => this.error.set(err?.error?.error ?? 'Could not load store members.')
+      error: (err) => this.setError(err, 'Could not load store members.')
     });
   }
 
@@ -446,45 +573,173 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     this.clearAlerts();
     this.api.updateOrderStatus(publicId, status).subscribe({
       next: () => this.refreshOrders(),
-      error: (err) => this.error.set(err?.error?.error ?? 'Could not update order status.')
+      error: (err) => this.setError(err, 'Could not update order status.')
     });
   }
 
-  createCategory(): void {
+  startEditCategory(category: Category): void {
     this.clearAlerts();
-    this.api.createCategory(this.categoryName, this.categorySortOrder).subscribe({
+    this.editingCategoryPublicId.set(category.publicId);
+    this.categoryName = category.name;
+    this.categorySortOrder = category.sortOrder;
+  }
+
+  cancelCategoryEdit(): void {
+    this.editingCategoryPublicId.set(null);
+    this.categoryName = '';
+    this.categorySortOrder = 1;
+  }
+
+  saveCategory(): void {
+    this.clearAlerts();
+    const editingId = this.editingCategoryPublicId();
+    const action$ = editingId
+      ? this.api.updateCategory(editingId, this.categoryName, this.categorySortOrder)
+      : this.api.createCategory(this.categoryName, this.categorySortOrder);
+
+    action$.subscribe({
       next: () => {
-        this.categoryName = '';
-        this.message.set('Category created.');
+        this.cancelCategoryEdit();
+        this.message.set(editingId ? 'Category updated.' : 'Category created.');
         this.refreshMenu();
       },
-      error: (err) => this.error.set(err?.error?.error ?? 'Could not create category.')
+      error: (err) =>
+        this.setError(err, editingId ? 'Could not update category.' : 'Could not create category.')
     });
   }
 
-  createMenuItem(): void {
+  moveCategory(index: number, offset: -1 | 1): void {
+    const current = [...this.categories()];
+    const targetIndex = index + offset;
+    if (targetIndex < 0 || targetIndex >= current.length) {
+      return;
+    }
+
+    [current[index], current[targetIndex]] = [current[targetIndex], current[index]];
     this.clearAlerts();
-    this.api
-      .createMenuItem({
-        categoryPublicId: this.selectedCategoryId,
-        name: this.itemName,
-        description: this.itemDescription,
-        price: Number(this.itemPrice),
-        imageUrl: this.itemImageUrl || null,
-        isAvailable: true,
-        sortOrder: 0
-      })
-      .subscribe({
-        next: () => {
-          this.itemName = '';
-          this.itemDescription = '';
-          this.itemPrice = 0;
-          this.itemImageUrl = '';
-          this.message.set('Menu item created.');
-          this.refreshMenu();
-        },
-        error: (err) => this.error.set(err?.error?.error ?? 'Could not create menu item.')
-      });
+    this.api.reorderCategories(current.map((c) => c.publicId)).subscribe({
+      next: (updated) => {
+        this.categories.set(updated);
+        this.refreshMenu();
+      },
+      error: (err) => this.setError(err, 'Could not reorder categories.')
+    });
+  }
+
+  deleteCategory(publicId: string): void {
+    this.clearAlerts();
+    this.api.deleteCategory(publicId).subscribe({
+      next: () => {
+        if (this.editingCategoryPublicId() === publicId) {
+          this.cancelCategoryEdit();
+        }
+        this.message.set('Category deleted.');
+        this.refreshMenu();
+      },
+      error: (err) => this.setError(err, 'Could not delete category.')
+    });
+  }
+
+  toggleAcceptingOrders(): void {
+    const activeStore = this.store();
+    if (!activeStore) {
+      return;
+    }
+
+    this.clearAlerts();
+    const nextValue = !activeStore.isAcceptingOrders;
+    this.api.updateCurrentStoreSettings(nextValue).subscribe({
+      next: (updated) => {
+        this.store.set(updated);
+        this.message.set(
+          updated.isAcceptingOrders
+            ? 'Store is now open and accepting orders.'
+            : 'Store is now closed and not accepting orders.'
+        );
+      },
+      error: (err) => this.setError(err, 'Could not update store settings.')
+    });
+  }
+
+  onMenuImageSelected(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    this.clearAlerts();
+    this.uploadingImage.set(true);
+    this.api.uploadMenuItemImage(file).subscribe({
+      next: (res) => {
+        this.itemImageUrl = res.imageUrl;
+        this.uploadingImage.set(false);
+        this.message.set('Image uploaded. Click Save/Add Menu Item to apply.');
+        if (input) {
+          input.value = '';
+        }
+      },
+      error: (err) => {
+        this.uploadingImage.set(false);
+        this.setError(err, 'Could not upload image.');
+        if (input) {
+          input.value = '';
+        }
+      }
+    });
+  }
+
+  startEdit(item: MenuItem): void {
+    this.clearAlerts();
+    this.editingItemPublicId.set(item.publicId);
+    this.selectedCategoryId = item.categoryPublicId;
+    this.itemName = item.name;
+    this.itemDescription = item.description;
+    this.itemPrice = item.price;
+    this.itemImageUrl = item.imageUrl ?? '';
+    this.itemIsAvailable = item.isAvailable;
+    this.itemSortOrder = item.sortOrder;
+  }
+
+  cancelEdit(): void {
+    this.editingItemPublicId.set(null);
+    this.selectedCategoryId = '';
+    this.itemName = '';
+    this.itemDescription = '';
+    this.itemPrice = 0;
+    this.itemImageUrl = '';
+    this.itemIsAvailable = true;
+    this.itemSortOrder = 0;
+  }
+
+  saveMenuItem(): void {
+    this.clearAlerts();
+    const editingId = this.editingItemPublicId();
+    const request: SaveMenuItemRequest = {
+      categoryPublicId: this.selectedCategoryId,
+      name: this.itemName,
+      description: this.itemDescription,
+      price: Number(this.itemPrice),
+      imageUrl: this.itemImageUrl || null,
+      isAvailable: editingId ? this.itemIsAvailable : true,
+      sortOrder: editingId ? this.itemSortOrder : 0
+    };
+
+    const action$ = editingId
+      ? this.api.updateMenuItem(editingId, request)
+      : this.api.createMenuItem(request);
+
+    action$.subscribe({
+      next: () => {
+        this.cancelEdit();
+        this.message.set(editingId ? 'Menu item updated.' : 'Menu item created.');
+        this.refreshMenu();
+      },
+      error: (err) =>
+        this.error.set(
+          err?.error?.error ?? (editingId ? 'Could not update menu item.' : 'Could not create menu item.')
+        )
+    });
   }
 
   toggleAvailability(item: MenuItem): void {
@@ -508,7 +763,12 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   deleteItem(publicId: string): void {
     this.clearAlerts();
     this.api.deleteMenuItem(publicId).subscribe({
-      next: () => this.refreshMenu(),
+      next: () => {
+        if (this.editingItemPublicId() === publicId) {
+          this.cancelEdit();
+        }
+        this.refreshMenu();
+      },
       error: (err) => this.error.set(err?.error?.error ?? 'Could not delete menu item.')
     });
   }
@@ -546,6 +806,12 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   }
 
   private refreshAll(): void {
+    const slug = this.storeSlug();
+    if (slug) {
+      this.api.getStoreBySlug(slug).subscribe({
+        next: (store) => this.store.set(store)
+      });
+    }
     this.refreshOrders();
     this.refreshMenu();
   }
@@ -564,5 +830,15 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   private clearAlerts(): void {
     this.message.set(null);
     this.error.set(null);
+  }
+
+  private setError(err: { error?: { error?: string }; status?: number }, fallback: string): void {
+    if (err?.error?.error) {
+      this.error.set(err.error.error);
+      return;
+    }
+
+    const suffix = err?.status ? ` (HTTP ${err.status})` : '';
+    this.error.set(`${fallback}${suffix}`);
   }
 }

@@ -205,4 +205,29 @@ public sealed class OrderTests
         Assert.Equal("09171234567", delivery.Order.CustomerPhone);
         Assert.Equal("123 Main St, Makati", delivery.Order.DeliveryAddress);
     }
+
+    [Fact]
+    public async Task PlaceOrder_Rejects_When_Store_Is_Not_Accepting_Orders()
+    {
+        var tenant = new TestTenantContext(storeId: 1);
+        await using var db = TestDbFactory.Create(tenant);
+        var (first, _) = await TestDbFactory.SeedTwoStoresAsync(db);
+        first.IsAcceptingOrders = false;
+        await db.SaveChangesAsync();
+
+        var category = (await new CategoryService(db, tenant)
+            .CreateAsync(new CreateCategoryRequest("Burgers", 1))).Category!;
+        var burger = (await new MenuItemService(db, tenant)
+            .CreateAsync(new CreateMenuItemRequest(
+                category.PublicId, "Cheeseburger", "Classic", 9.99m))).Item!;
+
+        var customer = new TestCurrentUser(Guid.NewGuid(), isAuthenticated: true, "Customer");
+        var result = await new OrderService(db, tenant, customer).PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(burger.PublicId, 1)],
+            OrderType.Pickup,
+            CustomerPhone: "09171234567"));
+
+        Assert.Null(result.Order);
+        Assert.Contains("closed", result.Error, StringComparison.OrdinalIgnoreCase);
+    }
 }

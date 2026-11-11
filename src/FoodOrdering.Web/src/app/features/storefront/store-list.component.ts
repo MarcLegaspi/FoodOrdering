@@ -29,9 +29,15 @@ import { TenantService } from '../../core/tenant/tenant.service';
                 <h2 class="text-lg font-semibold text-slate-900 group-hover:underline">
                   {{ store.name }}
                 </h2>
-                <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                  Open
-                </span>
+                @if (store.isAcceptingOrders) {
+                  <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                    Open
+                  </span>
+                } @else {
+                  <span class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                    Closed
+                  </span>
+                }
               </div>
               <p class="mt-1 text-xs text-slate-400">/{{ store.slug }}</p>
               @if (store.email) {

@@ -1,5 +1,7 @@
+using FoodOrdering.Api.Filters;
 using FoodOrdering.Application.Auth;
 using FoodOrdering.Application.Stores;
+using FoodOrdering.Domain.Stores;
 
 namespace FoodOrdering.Api.Endpoints;
 
@@ -39,6 +41,16 @@ public static class StoreEndpoints
             return Results.Created($"/api/stores/{result.Store.Slug}", result.Store);
         })
         .RequireAuthorization(policy => policy.RequireRole(AppRoles.Admin));
+
+        group.MapPatch("/current/settings", async (
+            UpdateStoreSettingsRequest request,
+            StoreService storeService,
+            CancellationToken ct) =>
+        {
+            var updated = await storeService.UpdateCurrentStoreSettingsAsync(request, ct);
+            return updated is null ? Results.NotFound() : Results.Ok(updated);
+        })
+        .RequireStoreRole(StoreRole.Manager);
 
         return app;
     }

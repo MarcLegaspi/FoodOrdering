@@ -46,6 +46,7 @@ export interface Store {
   email: string;
   phone: string;
   isActive: boolean;
+  isAcceptingOrders: boolean;
   createdAtUtc: string;
 }
 

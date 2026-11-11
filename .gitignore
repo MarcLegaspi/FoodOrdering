@@ -23,6 +23,9 @@ artifacts/
 .env.*
 appsettings.*.local.json
 
+# Local Uploads
+uploads/
+
 # Angular / Node (for web/ when added)
 node_modules/
 dist/

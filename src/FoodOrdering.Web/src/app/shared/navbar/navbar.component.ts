@@ -37,6 +37,15 @@ import { TenantService } from '../../core/tenant/tenant.service';
             }
 
             @if (auth.isAdmin()) {
+              @if (tenant.storeSlug(); as slug) {
+                <a
+                  [routerLink]="['/', slug, 'manage']"
+                  class="rounded-md bg-slate-100 px-2.5 py-1 text-slate-800 hover:bg-slate-200"
+                >
+                  Manage {{ slug }}
+                </a>
+              }
+
               <a
                 routerLink="/admin/stores"
                 class="rounded-md bg-indigo-50 px-2.5 py-1 text-indigo-700 hover:bg-indigo-100"

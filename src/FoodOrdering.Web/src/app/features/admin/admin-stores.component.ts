@@ -104,9 +104,17 @@ import { TenantService } from '../../core/tenant/tenant.service';
                   <p class="font-semibold text-slate-900">{{ s.name }}</p>
                   <p class="text-xs text-slate-400">/{{ s.slug }}</p>
                 </div>
-                <a [routerLink]="['/', s.slug]" class="text-xs font-medium text-slate-700 underline">
-                  Open
-                </a>
+                <div class="flex items-center gap-3">
+                  <a [routerLink]="['/', s.slug]" class="text-xs font-medium text-slate-700 underline">
+                    Open
+                  </a>
+                  <a
+                    [routerLink]="['/', s.slug, 'manage']"
+                    class="rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-slate-800"
+                  >
+                    Manage
+                  </a>
+                </div>
               </div>
             }
           </div>

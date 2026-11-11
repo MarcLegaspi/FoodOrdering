@@ -6,6 +6,7 @@ namespace FoodOrdering.Application.Stores;
 
 public sealed class StoreService(
     IAppDbContext db,
+    ITenantContext tenantContext,
     IUserDirectory userDirectory)
 {
     public async Task<IReadOnlyList<StoreResponse>> GetAllAsync(CancellationToken ct = default)
@@ -98,6 +99,27 @@ public sealed class StoreService(
         return CreateStoreResult.Created(ToResponse(store));
     }
 
+    public async Task<StoreResponse?> UpdateCurrentStoreSettingsAsync(
+        UpdateStoreSettingsRequest request,
+        CancellationToken ct = default)
+    {
+        if (tenantContext.StoreId is not long storeId)
+        {
+            return null;
+        }
+
+        var store = await db.Stores.FirstOrDefaultAsync(s => s.Id == storeId, ct);
+        if (store is null)
+        {
+            return null;
+        }
+
+        store.IsAcceptingOrders = request.IsAcceptingOrders;
+        await db.SaveChangesAsync(ct);
+
+        return ToResponse(store);
+    }
+
     private static string NormalizeSlug(string slug) =>
         slug.Trim().ToLowerInvariant();
 
@@ -109,6 +131,7 @@ public sealed class StoreService(
             store.Email,
             store.Phone,
             store.IsActive,
+            store.IsAcceptingOrders,
             store.CreatedAtUtc);
 }
 

@@ -13,7 +13,7 @@ public sealed class StoreServiceTests
         var tenant = new TestTenantContext();
         await using var db = TestDbFactory.Create(tenant);
         var users = new FakeUserDirectory();
-        var service = new StoreService(db, users);
+        var service = new StoreService(db, tenant, users);
 
         var result = await service.CreateAsync(new CreateStoreRequest(
             Slug: "  Taco-Town  ",
@@ -26,6 +26,7 @@ public sealed class StoreServiceTests
 
         Assert.NotNull(result.Store);
         Assert.Equal("taco-town", result.Store.Slug);
+        Assert.True(result.Store.IsAcceptingOrders);
 
         var ownerMember = await db.StoreMembers
             .IgnoreQueryFilters()
@@ -41,7 +42,7 @@ public sealed class StoreServiceTests
         await using var db = TestDbFactory.Create(tenant);
         await TestDbFactory.SeedTwoStoresAsync(db);
 
-        var service = new StoreService(db, new FakeUserDirectory());
+        var service = new StoreService(db, tenant, new FakeUserDirectory());
         var result = await service.CreateAsync(new CreateStoreRequest(
             Slug: "BURGER-BARN",
             Name: "Duplicate Burger Barn",
@@ -50,5 +51,25 @@ public sealed class StoreServiceTests
 
         Assert.True(result.IsConflict);
         Assert.Null(result.Store);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentStoreSettingsAsync_Toggles_IsAcceptingOrders()
+    {
+        var tenant = new TestTenantContext(storeId: 1);
+        await using var db = TestDbFactory.Create(tenant);
+        await TestDbFactory.SeedTwoStoresAsync(db);
+
+        var service = new StoreService(db, tenant, new FakeUserDirectory());
+
+        var closed = await service.UpdateCurrentStoreSettingsAsync(
+            new UpdateStoreSettingsRequest(IsAcceptingOrders: false));
+        Assert.NotNull(closed);
+        Assert.False(closed.IsAcceptingOrders);
+
+        var reopened = await service.UpdateCurrentStoreSettingsAsync(
+            new UpdateStoreSettingsRequest(IsAcceptingOrders: true));
+        Assert.NotNull(reopened);
+        Assert.True(reopened.IsAcceptingOrders);
     }
 }

@@ -418,6 +418,11 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<bool>("IsAcceptingOrders")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -460,6 +465,7 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                             Id = 1L,
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "hello@burgerbarn.local",
+                            IsAcceptingOrders = true,
                             IsActive = true,
                             Name = "Burger Barn",
                             Phone = "+1-555-0101",
@@ -471,6 +477,7 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                             Id = 2L,
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "hello@pizzapalace.local",
+                            IsAcceptingOrders = true,
                             IsActive = true,
                             Name = "Pizza Palace",
                             Phone = "+1-555-0102",
@@ -482,6 +489,7 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                             Id = 3L,
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "hello@sushispot.local",
+                            IsAcceptingOrders = true,
                             IsActive = true,
                             Name = "Sushi Spot",
                             Phone = "+1-555-0103",

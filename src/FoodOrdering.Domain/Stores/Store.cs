@@ -20,6 +20,8 @@ public sealed class Store : AuditableEntity
 
     public bool IsActive { get; set; } = true;
 
+    public bool IsAcceptingOrders { get; set; } = true;
+
     public ICollection<Category> Categories { get; set; } = new List<Category>();
 
     public ICollection<MenuItem> MenuItems { get; set; } = new List<MenuItem>();
