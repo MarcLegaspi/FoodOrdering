@@ -4,14 +4,20 @@ on:
   push:
     branches: [ main, master ]
     paths:
-      - 'src/**'
+      - 'src/FoodOrdering.Api/**'
+      - 'src/FoodOrdering.Application/**'
+      - 'src/FoodOrdering.Domain/**'
+      - 'src/FoodOrdering.Infrastructure/**'
       - 'tests/**'
       - 'FoodOrdering.slnx'
       - '.github/workflows/backend-ci.yml'
   pull_request:
     branches: [ main, master ]
     paths:
-      - 'src/**'
+      - 'src/FoodOrdering.Api/**'
+      - 'src/FoodOrdering.Application/**'
+      - 'src/FoodOrdering.Domain/**'
+      - 'src/FoodOrdering.Infrastructure/**'
       - 'tests/**'
       - 'FoodOrdering.slnx'
 
