@@ -113,13 +113,41 @@ import { resolveImageUrl } from '../../core/utils/media-url';
       <!-- ORDERS TAB -->
       @if (tab() === 'orders') {
         <div class="space-y-4">
-          @if (orders().length === 0) {
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap gap-2">
+              @for (opt of orderStatusOptions; track opt.label) {
+                <button
+                  type="button"
+                  (click)="orderStatusFilter.set(opt.value)"
+                  class="rounded-full px-3 py-1.5 text-xs font-medium transition"
+                  [class]="orderStatusFilter() === opt.value
+                    ? 'bg-slate-900 text-white'
+                    : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
+                >
+                  {{ opt.label }} ({{ orderCount(opt.value) }})
+                </button>
+              }
+            </div>
+
+            <button
+              type="button"
+              (click)="toggleSound()"
+              class="rounded-lg border px-3 py-1.5 text-xs font-medium transition"
+              [class]="soundEnabled()
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'"
+            >
+              {{ soundEnabled() ? 'Sound Alerts: On' : 'Sound Alerts: Off' }}
+            </button>
+          </div>
+
+          @if (filteredOrders().length === 0) {
             <p class="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-              No orders for this store yet.
+              {{ orders().length > 0 ? 'No orders with this status.' : 'No orders for this store yet.' }}
             </p>
           }
 
-          @for (order of orders(); track order.publicId) {
+          @for (order of filteredOrders(); track order.publicId) {
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -520,15 +548,28 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   readonly orderLive = inject(OrderLiveService);
 
   private readonly liveSubscriptions = new Subscription();
+  private audioContext: AudioContext | null = null;
 
   readonly OrderStatus = OrderStatus;
   readonly StoreRole = StoreRole;
   readonly imageUrl = resolveImageUrl;
 
+  readonly orderStatusOptions: Array<{ label: string; value: OrderStatus | null }> = [
+    { label: 'All', value: null },
+    { label: 'Pending', value: OrderStatus.Pending },
+    { label: 'Confirmed', value: OrderStatus.Confirmed },
+    { label: 'Preparing', value: OrderStatus.Preparing },
+    { label: 'Ready', value: OrderStatus.Ready },
+    { label: 'Completed', value: OrderStatus.Completed },
+    { label: 'Cancelled', value: OrderStatus.Cancelled }
+  ];
+
   readonly storeSlug = signal('');
   readonly store = signal<Store | null>(null);
   readonly tab = signal<'orders' | 'menu' | 'team'>('orders');
   readonly orders = signal<Order[]>([]);
+  readonly orderStatusFilter = signal<OrderStatus | null>(null);
+  readonly soundEnabled = signal(this.loadSoundPreference());
   readonly categories = signal<Category[]>([]);
   readonly menuItems = signal<MenuItem[]>([]);
   readonly members = signal<StoreMember[]>([]);
@@ -542,6 +583,20 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   readonly isManager = computed(() =>
     this.auth.hasStoreRole(this.storeSlug(), StoreRole.Manager)
   );
+
+  readonly filteredOrders = computed(() => {
+    const filter = this.orderStatusFilter();
+    const all = this.orders();
+    return filter === null ? all : all.filter((o) => o.status === filter);
+  });
+
+  readonly orderCountsByStatus = computed(() => {
+    const counts = new Map<OrderStatus, number>();
+    for (const order of this.orders()) {
+      counts.set(order.status, (counts.get(order.status) ?? 0) + 1);
+    }
+    return counts;
+  });
 
   categoryName = '';
   categorySortOrder = 1;
@@ -565,6 +620,9 @@ export class StoreManageComponent implements OnInit, OnDestroy {
         if (order.storeSlug === this.storeSlug()) {
           this.orders.update((list) => upsertOrderList(list, order));
           this.liveAlert.set(`New ${this.orderTypeText(order.orderType).toLowerCase()} order ${order.orderNumber}!`);
+          if (this.soundEnabled()) {
+            this.playNewOrderChime();
+          }
         }
       })
     );
@@ -605,7 +663,29 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     void this.orderLive.leaveStoreKitchen(this.storeSlug());
     this.liveSubscriptions.unsubscribe();
+    if (this.audioContext) {
+      void this.audioContext.close();
+      this.audioContext = null;
+    }
     this.tenant.setStoreSlug(null);
+  }
+
+  orderCount(status: OrderStatus | null): number {
+    return status === null ? this.orders().length : (this.orderCountsByStatus().get(status) ?? 0);
+  }
+
+  toggleSound(): void {
+    const next = !this.soundEnabled();
+    this.soundEnabled.set(next);
+    try {
+      localStorage.setItem('fo_kitchen_sound', next ? '1' : '0');
+    } catch {
+      // Ignore storage failures
+    }
+
+    if (next) {
+      this.playNewOrderChime();
+    }
   }
 
   statusText(status: OrderStatus): string {
@@ -899,5 +979,53 @@ export class StoreManageComponent implements OnInit, OnDestroy {
 
     const suffix = err?.status ? ` (HTTP ${err.status})` : '';
     this.error.set(`${fallback}${suffix}`);
+  }
+
+  private loadSoundPreference(): boolean {
+    try {
+      return localStorage.getItem('fo_kitchen_sound') !== '0';
+    } catch {
+      return true;
+    }
+  }
+
+  private playNewOrderChime(): void {
+    try {
+      const AudioCtx = window.AudioContext
+        ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) {
+        return;
+      }
+
+      if (!this.audioContext || this.audioContext.state === 'closed') {
+        this.audioContext = new AudioCtx();
+      }
+
+      if (this.audioContext.state === 'suspended') {
+        void this.audioContext.resume();
+      }
+
+      const now = this.audioContext.currentTime;
+      this.scheduleTone(this.audioContext, 880, now, 0.14);
+      this.scheduleTone(this.audioContext, 1174.66, now + 0.14, 0.22);
+    } catch {
+      // Ignore audio errors if blocked by browser autoplay policy
+    }
+  }
+
+  private scheduleTone(ctx: AudioContext, frequency: number, startTime: number, duration: number): void {
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(frequency, startTime);
+
+    gain.gain.setValueAtTime(0.001, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, startTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration);
   }
 }
