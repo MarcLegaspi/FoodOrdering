@@ -224,6 +224,14 @@ import { TenantService } from '../../core/tenant/tenant.service';
                 class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               />
 
+              <input
+                type="text"
+                name="itemImageUrl"
+                [(ngModel)]="itemImageUrl"
+                placeholder="Image URL (optional, e.g. /images/menu/cheeseburger.jpg)"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+
               <button
                 type="submit"
                 class="w-full rounded-lg bg-slate-900 py-2 text-sm font-semibold text-white"
@@ -239,9 +247,18 @@ import { TenantService } from '../../core/tenant/tenant.service';
           <div class="mt-3 divide-y divide-slate-100">
             @for (item of menuItems(); track item.publicId) {
               <div class="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
-                <div>
-                  <span class="font-semibold text-slate-900">{{ item.name }}</span>
-                  <span class="ml-2 text-xs text-slate-400">{{ item.categoryName }}</span>
+                <div class="flex items-center gap-3">
+                  @if (item.imageUrl) {
+                    <img
+                      [src]="item.imageUrl"
+                      [alt]="item.name"
+                      class="h-10 w-10 rounded-md object-cover"
+                    />
+                  }
+                  <div>
+                    <span class="font-semibold text-slate-900">{{ item.name }}</span>
+                    <span class="ml-2 text-xs text-slate-400">{{ item.categoryName }}</span>
+                  </div>
                 </div>
                 <div class="flex items-center gap-3">
                   <span class="font-medium text-slate-900">{{ item.price | currency }}</span>
@@ -370,6 +387,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   itemName = '';
   itemDescription = '';
   itemPrice = 0;
+  itemImageUrl = '';
 
   memberEmail = '';
   memberFullName = '';
@@ -433,6 +451,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
         name: this.itemName,
         description: this.itemDescription,
         price: Number(this.itemPrice),
+        imageUrl: this.itemImageUrl || null,
         isAvailable: true,
         sortOrder: 0
       })
@@ -441,6 +460,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
           this.itemName = '';
           this.itemDescription = '';
           this.itemPrice = 0;
+          this.itemImageUrl = '';
           this.message.set('Menu item created.');
           this.refreshMenu();
         },

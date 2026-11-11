@@ -37,24 +37,38 @@ import { TenantService } from '../../core/tenant/tenant.service';
 
               <div class="grid gap-3 sm:grid-cols-2">
                 @for (item of group.items; track item.publicId) {
-                  <div class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4">
-                    <div>
-                      <div class="flex items-start justify-between gap-2">
-                        <h3 class="font-semibold text-slate-900">{{ item.name }}</h3>
-                        <span class="font-semibold text-slate-900">{{ item.price | currency }}</span>
+                  <div class="flex flex-col justify-between overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                    @if (item.imageUrl) {
+                      <img
+                        [src]="item.imageUrl"
+                        [alt]="item.name"
+                        class="h-44 w-full object-cover"
+                      />
+                    } @else {
+                      <div class="flex h-44 w-full items-center justify-center bg-slate-100 text-xs font-medium text-slate-400">
+                        No image
                       </div>
-                      @if (item.description) {
-                        <p class="mt-1 text-sm text-slate-500">{{ item.description }}</p>
-                      }
-                    </div>
+                    }
 
-                    <button
-                      type="button"
-                      (click)="cart.addItem(item)"
-                      class="mt-4 w-full rounded-lg border border-slate-300 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                    >
-                      Add to cart
-                    </button>
+                    <div class="flex flex-1 flex-col justify-between p-4">
+                      <div>
+                        <div class="flex items-start justify-between gap-2">
+                          <h3 class="font-semibold text-slate-900">{{ item.name }}</h3>
+                          <span class="font-semibold text-slate-900">{{ item.price | currency }}</span>
+                        </div>
+                        @if (item.description) {
+                          <p class="mt-1 text-sm text-slate-500">{{ item.description }}</p>
+                        }
+                      </div>
+
+                      <button
+                        type="button"
+                        (click)="cart.addItem(item)"
+                        class="mt-4 w-full rounded-lg border border-slate-300 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
+                      >
+                        Add to cart
+                      </button>
+                    </div>
                   </div>
                 }
               </div>
