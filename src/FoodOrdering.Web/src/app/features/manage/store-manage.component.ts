@@ -2,6 +2,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import {
   Category,
@@ -18,6 +19,7 @@ import {
   storeRoleLabel
 } from '../../core/models/api.models';
 import { FoodOrderingApiService } from '../../core/services/food-ordering-api.service';
+import { OrderLiveService, upsertOrderList } from '../../core/services/order-live.service';
 import { TenantService } from '../../core/tenant/tenant.service';
 import { resolveImageUrl } from '../../core/utils/media-url';
 
@@ -28,7 +30,14 @@ import { resolveImageUrl } from '../../core/utils/media-url';
     <div class="space-y-6">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-bold text-slate-900">Manage: {{ storeSlug() }}</h1>
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-2xl font-bold text-slate-900">Manage: {{ storeSlug() }}</h1>
+            @if (orderLive.connectionState() === 'connected') {
+              <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                Live
+              </span>
+            }
+          </div>
           <p class="mt-1 text-sm text-slate-500">Store dashboard for orders, menu, and team members.</p>
         </div>
 
@@ -82,6 +91,18 @@ import { resolveImageUrl } from '../../core/utils/media-url';
         </div>
       </div>
 
+      @if (liveAlert(); as alertText) {
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900">
+          <span>{{ alertText }}</span>
+          <button
+            type="button"
+            (click)="liveAlert.set(null)"
+            class="text-xs font-semibold text-amber-800 underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      }
       @if (message()) {
         <div class="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{{ message() }}</div>
       }
@@ -496,6 +517,9 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   private readonly api = inject(FoodOrderingApiService);
   private readonly tenant = inject(TenantService);
   private readonly auth = inject(AuthService);
+  readonly orderLive = inject(OrderLiveService);
+
+  private readonly liveSubscriptions = new Subscription();
 
   readonly OrderStatus = OrderStatus;
   readonly StoreRole = StoreRole;
@@ -508,6 +532,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   readonly categories = signal<Category[]>([]);
   readonly menuItems = signal<MenuItem[]>([]);
   readonly members = signal<StoreMember[]>([]);
+  readonly liveAlert = signal<string | null>(null);
   readonly message = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly uploadingImage = signal(false);
@@ -535,17 +560,51 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   memberRole = StoreRole.Staff;
 
   ngOnInit(): void {
-    this.route.paramMap.subscribe((params) => {
-      const slug = params.get('storeSlug') ?? '';
-      this.storeSlug.set(slug);
-      this.tenant.setStoreSlug(slug);
-      this.cancelCategoryEdit();
-      this.cancelEdit();
-      this.refreshAll();
-    });
+    this.liveSubscriptions.add(
+      this.orderLive.orderPlaced$.subscribe((order) => {
+        if (order.storeSlug === this.storeSlug()) {
+          this.orders.update((list) => upsertOrderList(list, order));
+          this.liveAlert.set(`New ${this.orderTypeText(order.orderType).toLowerCase()} order ${order.orderNumber}!`);
+        }
+      })
+    );
+
+    this.liveSubscriptions.add(
+      this.orderLive.orderUpdated$.subscribe((order) => {
+        if (order.storeSlug === this.storeSlug()) {
+          this.orders.update((list) => upsertOrderList(list, order));
+        }
+      })
+    );
+
+    this.liveSubscriptions.add(
+      this.orderLive.reconnected$.subscribe(() => this.refreshOrders())
+    );
+
+    this.liveSubscriptions.add(
+      this.route.paramMap.subscribe((params) => {
+        const previousSlug = this.storeSlug();
+        const slug = params.get('storeSlug') ?? '';
+        if (previousSlug && previousSlug !== slug) {
+          void this.orderLive.leaveStoreKitchen(previousSlug);
+        }
+
+        this.storeSlug.set(slug);
+        this.tenant.setStoreSlug(slug);
+        this.liveAlert.set(null);
+        this.cancelCategoryEdit();
+        this.cancelEdit();
+        this.refreshAll();
+        if (slug) {
+          void this.orderLive.joinStoreKitchen(slug);
+        }
+      })
+    );
   }
 
   ngOnDestroy(): void {
+    void this.orderLive.leaveStoreKitchen(this.storeSlug());
+    this.liveSubscriptions.unsubscribe();
     this.tenant.setStoreSlug(null);
   }
 

@@ -40,9 +40,11 @@ public sealed record OrderResult(
     OrderResponse? Order,
     string? Error,
     bool IsNotFound = false,
-    bool IsForbidden = false)
+    bool IsForbidden = false,
+    Guid? CustomerUserId = null)
 {
-    public static OrderResult Success(OrderResponse order) => new(order, null);
+    public static OrderResult Success(OrderResponse order, Guid? customerUserId = null) =>
+        new(order, null, CustomerUserId: customerUserId);
     public static OrderResult ValidationError(string error) => new(null, error);
     public static OrderResult NotFound(string error) => new(null, error, IsNotFound: true);
     public static OrderResult Forbidden(string error) => new(null, error, IsForbidden: true);

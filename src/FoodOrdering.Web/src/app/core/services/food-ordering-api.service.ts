@@ -79,6 +79,12 @@ export class FoodOrderingApiService {
     return this.http.delete<void>(`${this.api}/menu-items/${publicId}`);
   }
 
+  uploadMenuItemImage(file: File): Observable<{ imageUrl: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ imageUrl: string }>(`${this.api}/menu-items/upload-image`, formData);
+  }
+
   // Orders
   placeOrder(payload: PlaceOrderRequest): Observable<Order> {
     return this.http.post<Order>(`${this.api}/orders`, payload);

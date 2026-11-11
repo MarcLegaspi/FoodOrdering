@@ -1,8 +1,10 @@
 using FoodOrdering.Api.Filters;
+using FoodOrdering.Api.Hubs;
 using FoodOrdering.Application.Common.Interfaces;
 using FoodOrdering.Application.Orders;
 using FoodOrdering.Domain.Orders;
 using FoodOrdering.Domain.Stores;
+using Microsoft.AspNetCore.SignalR;
 
 namespace FoodOrdering.Api.Endpoints;
 
@@ -17,6 +19,7 @@ public static class OrderEndpoints
             PlaceOrderRequest request,
             ITenantContext tenantContext,
             OrderService orderService,
+            IHubContext<OrderHub> hubContext,
             CancellationToken ct) =>
         {
             if (tenantContext.StoreId is null)
@@ -25,6 +28,11 @@ public static class OrderEndpoints
             }
 
             var result = await orderService.PlaceOrderAsync(request, ct);
+            if (result.Order is not null)
+            {
+                await BroadcastOrderEventAsync(hubContext, "OrderPlaced", result, ct);
+            }
+
             return ToActionResult(result, createdRoute: true);
         })
         .RequireAuthorization();
@@ -39,9 +47,15 @@ public static class OrderEndpoints
         group.MapPost("/{publicId:guid}/cancel", async (
             Guid publicId,
             OrderService orderService,
+            IHubContext<OrderHub> hubContext,
             CancellationToken ct) =>
         {
             var result = await orderService.CancelMyOrderAsync(publicId, ct);
+            if (result.Order is not null)
+            {
+                await BroadcastOrderEventAsync(hubContext, "OrderUpdated", result, ct);
+            }
+
             return ToActionResult(result, createdRoute: false);
         })
         .RequireAuthorization();
@@ -60,14 +74,43 @@ public static class OrderEndpoints
             Guid publicId,
             UpdateOrderStatusRequest request,
             OrderService orderService,
+            IHubContext<OrderHub> hubContext,
             CancellationToken ct) =>
         {
             var result = await orderService.UpdateStatusAsync(publicId, request.Status, ct);
+            if (result.Order is not null)
+            {
+                await BroadcastOrderEventAsync(hubContext, "OrderUpdated", result, ct);
+            }
+
             return ToActionResult(result, createdRoute: false);
         })
         .RequireStoreRole(StoreRole.Staff);
 
         return app;
+    }
+
+    private static async Task BroadcastOrderEventAsync(
+        IHubContext<OrderHub> hubContext,
+        string storeEvent,
+        OrderResult result,
+        CancellationToken ct)
+    {
+        if (result.Order is null)
+        {
+            return;
+        }
+
+        await hubContext.Clients
+            .Group(OrderHub.StoreGroup(result.Order.StoreSlug))
+            .SendAsync(storeEvent, result.Order, ct);
+
+        if (result.CustomerUserId is Guid customerUserId)
+        {
+            await hubContext.Clients
+                .Group(OrderHub.UserGroup(customerUserId))
+                .SendAsync("OrderUpdated", result.Order, ct);
+        }
     }
 
     private static IResult ToActionResult(OrderResult result, bool createdRoute)

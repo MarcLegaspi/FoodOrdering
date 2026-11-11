@@ -1,4 +1,5 @@
 using FoodOrdering.Api.Endpoints;
+using FoodOrdering.Api.Hubs;
 using FoodOrdering.Api.Middleware;
 using FoodOrdering.Api.Services;
 using FoodOrdering.Application;
@@ -16,6 +17,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSignalR();
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
@@ -26,7 +28,8 @@ builder.Services.AddCors(options =>
         {
             policy.WithOrigins(allowedOrigins)
                 .AllowAnyHeader()
-                .AllowAnyMethod();
+                .AllowAnyMethod()
+                .AllowCredentials();
         }
     });
 });
@@ -65,6 +68,7 @@ app.MapStoreMemberEndpoints();
 app.MapCategoryEndpoints();
 app.MapMenuItemEndpoints();
 app.MapOrderEndpoints();
+app.MapHub<OrderHub>("/hubs/orders");
 
 await AdminSeeder.SeedAsync(app.Services);
 

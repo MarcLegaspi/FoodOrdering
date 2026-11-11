@@ -141,7 +141,8 @@ public sealed class OrderService(
                 i.ItemNameSnapshot,
                 i.UnitPriceSnapshot,
                 i.Quantity,
-                i.UnitPriceSnapshot * i.Quantity)).ToList()));
+                i.UnitPriceSnapshot * i.Quantity)).ToList()),
+            customerUserId);
     }
 
     public async Task<IReadOnlyList<OrderResponse>> GetMyOrdersAsync(CancellationToken ct = default)
@@ -213,7 +214,7 @@ public sealed class OrderService(
         order.Status = newStatus;
         await db.SaveChangesAsync(ct);
 
-        return OrderResult.Success(ToResponse(order));
+        return OrderResult.Success(ToResponse(order), order.CustomerUserId);
     }
 
     public async Task<OrderResult> CancelMyOrderAsync(Guid publicId, CancellationToken ct = default)
@@ -248,7 +249,7 @@ public sealed class OrderService(
         order.Status = OrderStatus.Cancelled;
         await db.SaveChangesAsync(ct);
 
-        return OrderResult.Success(ToResponse(order));
+        return OrderResult.Success(ToResponse(order), order.CustomerUserId);
     }
 
     private static bool IsValidTransition(OrderStatus current, OrderStatus next)

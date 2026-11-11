@@ -1,8 +1,10 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { Order, OrderStatus, OrderType, orderStatusLabel, orderTypeLabel } from '../../core/models/api.models';
 import { FoodOrderingApiService } from '../../core/services/food-ordering-api.service';
+import { OrderLiveService, upsertOrderList } from '../../core/services/order-live.service';
 import { TenantService } from '../../core/tenant/tenant.service';
 
 @Component({
@@ -11,7 +13,14 @@ import { TenantService } from '../../core/tenant/tenant.service';
   template: `
     <div class="space-y-6">
       <div>
-        <h1 class="text-2xl font-bold text-slate-900">My Orders</h1>
+        <div class="flex items-center gap-2.5">
+          <h1 class="text-2xl font-bold text-slate-900">My Orders</h1>
+          @if (orderLive.connectionState() === 'connected') {
+            <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+              Live
+            </span>
+          }
+        </div>
         <p class="mt-1 text-sm text-slate-500">Track your orders across all stores.</p>
       </div>
 
@@ -87,9 +96,12 @@ import { TenantService } from '../../core/tenant/tenant.service';
     </div>
   `
 })
-export class MyOrdersComponent implements OnInit {
+export class MyOrdersComponent implements OnInit, OnDestroy {
   private readonly api = inject(FoodOrderingApiService);
   private readonly tenant = inject(TenantService);
+  readonly orderLive = inject(OrderLiveService);
+
+  private readonly liveSubscriptions = new Subscription();
 
   readonly OrderStatus = OrderStatus;
   readonly orders = signal<Order[]>([]);
@@ -98,6 +110,21 @@ export class MyOrdersComponent implements OnInit {
   ngOnInit(): void {
     this.tenant.setStoreSlug(null);
     this.loadOrders();
+    void this.orderLive.connectForCustomer();
+
+    this.liveSubscriptions.add(
+      this.orderLive.orderUpdated$.subscribe((order) =>
+        this.orders.update((list) => upsertOrderList(list, order))
+      )
+    );
+
+    this.liveSubscriptions.add(
+      this.orderLive.reconnected$.subscribe(() => this.loadOrders())
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.liveSubscriptions.unsubscribe();
   }
 
   statusText(status: OrderStatus): string {
