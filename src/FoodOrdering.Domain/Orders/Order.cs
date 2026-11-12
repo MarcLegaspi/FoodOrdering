@@ -35,6 +35,10 @@ public sealed class Order : AuditableEntity, ITenantEntity
 
     public decimal Subtotal { get; set; }
 
+    public string? PromoCodeSnapshot { get; set; }
+
+    public decimal DiscountAmount { get; set; }
+
     public decimal DeliveryFee { get; set; }
 
     public decimal TotalAmount { get; set; }

@@ -1,5 +1,6 @@
 using FoodOrdering.Application.Common.Interfaces;
 using FoodOrdering.Domain.Orders;
+using FoodOrdering.Domain.Promos;
 using Microsoft.EntityFrameworkCore;
 
 namespace FoodOrdering.Application.Orders;
@@ -197,7 +198,67 @@ public sealed class OrderService(
             deliveryLandmark = request.DeliveryLandmark?.Trim();
         }
 
-        var totalAmount = subtotal + deliveryFee;
+        decimal discountAmount = 0m;
+        string? promoCodeSnapshot = null;
+
+        if (!string.IsNullOrWhiteSpace(request.PromoCode))
+        {
+            if (customerType != CustomerType.Registered)
+            {
+                return OrderResult.ValidationError("Promo codes are only available for registered members. Please sign in to apply.");
+            }
+
+            var normalizedPromoCode = request.PromoCode.Trim().ToUpperInvariant();
+            var promo = await db.PromoCodes
+                .FirstOrDefaultAsync(p => p.Code == normalizedPromoCode, ct);
+
+            if (promo is null || !promo.IsActive)
+            {
+                return OrderResult.ValidationError("Invalid or inactive promo code.");
+            }
+
+            if (promo.StartsAtUtc is { } startsAt && DateTime.UtcNow < startsAt)
+            {
+                return OrderResult.ValidationError($"This promo code is not active yet. It will be valid starting {startsAt:MMM d, yyyy h:mm tt} UTC.");
+            }
+
+            if (promo.ExpiresAtUtc is { } expiry && DateTime.UtcNow > expiry)
+            {
+                return OrderResult.ValidationError("This promo code has expired.");
+            }
+
+            if (promo.MaxUses is { } maxUses && promo.UsedCount >= maxUses)
+            {
+                return OrderResult.ValidationError("This promo code has reached its maximum claim limit.");
+            }
+
+            if (customerUserId is not null)
+            {
+                var alreadyUsed = await db.Orders
+                    .AsNoTracking()
+                    .AnyAsync(o => o.CustomerUserId == customerUserId
+                                && o.PromoCodeSnapshot == promo.Code
+                                && o.Status != OrderStatus.Cancelled, ct);
+
+                if (alreadyUsed)
+                {
+                    return OrderResult.ValidationError("You have already used this promo code on a previous order.");
+                }
+            }
+
+            discountAmount = promo.DiscountType switch
+            {
+                PromoDiscountType.Percentage => Math.Round(subtotal * (promo.DiscountValue / 100m), 2),
+                PromoDiscountType.FixedAmount => promo.DiscountValue,
+                _ => 0m
+            };
+
+            discountAmount = Math.Min(subtotal, Math.Max(0m, discountAmount));
+            promoCodeSnapshot = promo.Code;
+            promo.UsedCount++;
+        }
+
+        var totalAmount = Math.Max(0m, subtotal - discountAmount) + deliveryFee;
 
         var order = new Order
         {
@@ -213,6 +274,8 @@ public sealed class OrderService(
             DeliveryAddress = deliveryAddress,
             DeliveryLandmark = deliveryLandmark,
             Subtotal = subtotal,
+            PromoCodeSnapshot = promoCodeSnapshot,
+            DiscountAmount = discountAmount,
             DeliveryFee = deliveryFee,
             TotalAmount = totalAmount,
             EstimatedDeliveryTime = estimatedDeliveryTime,
@@ -238,6 +301,8 @@ public sealed class OrderService(
             order.DeliveryAddress,
             order.DeliveryLandmark,
             order.Subtotal,
+            order.PromoCodeSnapshot,
+            order.DiscountAmount,
             order.DeliveryFee,
             order.TotalAmount,
             order.EstimatedDeliveryTime,
@@ -324,6 +389,16 @@ public sealed class OrderService(
                 $"Cannot change order status from {order.Status} to {newStatus}.");
         }
 
+        if (newStatus == OrderStatus.Cancelled && order.Status != OrderStatus.Cancelled && !string.IsNullOrEmpty(order.PromoCodeSnapshot))
+        {
+            var promo = await db.PromoCodes
+                .FirstOrDefaultAsync(p => p.StoreId == order.StoreId && p.Code == order.PromoCodeSnapshot, ct);
+            if (promo != null && promo.UsedCount > 0)
+            {
+                promo.UsedCount--;
+            }
+        }
+
         order.Status = newStatus;
         await db.SaveChangesAsync(ct);
 
@@ -362,6 +437,15 @@ public sealed class OrderService(
         }
 
         order.Status = OrderStatus.Cancelled;
+        if (!string.IsNullOrEmpty(order.PromoCodeSnapshot))
+        {
+            var promo = await db.PromoCodes
+                .FirstOrDefaultAsync(p => p.StoreId == order.StoreId && p.Code == order.PromoCodeSnapshot, ct);
+            if (promo != null && promo.UsedCount > 0)
+            {
+                promo.UsedCount--;
+            }
+        }
         await db.SaveChangesAsync(ct);
 
         return OrderResult.Success(ToResponse(order), order.CustomerUserId);
@@ -476,6 +560,8 @@ public sealed class OrderService(
             o.DeliveryAddress,
             o.DeliveryLandmark,
             o.Subtotal,
+            o.PromoCodeSnapshot,
+            o.DiscountAmount,
             o.DeliveryFee,
             o.TotalAmount,
             o.EstimatedDeliveryTime,
@@ -507,6 +593,8 @@ public sealed class OrderService(
             order.DeliveryAddress,
             order.DeliveryLandmark,
             order.Subtotal,
+            order.PromoCodeSnapshot,
+            order.DiscountAmount,
             order.DeliveryFee,
             order.TotalAmount,
             order.EstimatedDeliveryTime,

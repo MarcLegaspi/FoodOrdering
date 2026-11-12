@@ -183,6 +183,12 @@ import { OrderLiveService } from '../../core/services/order-live.service';
                   <span>Food Subtotal</span>
                   <span>{{ o.subtotal | currency }}</span>
                 </div>
+                @if (o.discountAmount > 0) {
+                  <div class="flex items-center justify-between text-emerald-700 font-medium">
+                    <span>Promo Discount ({{ o.promoCode }})</span>
+                    <span>-{{ o.discountAmount | currency }}</span>
+                  </div>
+                }
                 @if (o.orderType === OrderType.Delivery) {
                   <div class="flex items-center justify-between text-slate-600">
                     <span>Delivery Fee</span>

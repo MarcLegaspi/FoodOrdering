@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { CartSelectedOption, CartService } from '../../core/cart/cart.service';
-import { Category, MenuItem, OrderType, Store } from '../../core/models/api.models';
+import { Category, MenuItem, OrderType, PromoDiscountType, Store, ValidatePromoResponse } from '../../core/models/api.models';
 import { FoodOrderingApiService } from '../../core/services/food-ordering-api.service';
 import { TenantService } from '../../core/tenant/tenant.service';
 import { resolveImageUrl } from '../../core/utils/media-url';
@@ -297,11 +297,75 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 class="w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-slate-900 focus:outline-none"
               ></textarea>
 
+              <!-- Promo Code Section -->
+              <div class="border-t border-slate-200 pt-3">
+                @if (appliedPromo(); as promo) {
+                  <div class="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2 text-xs border border-emerald-200">
+                    <div class="space-y-0.5">
+                      <div class="font-bold text-emerald-800 flex items-center gap-1.5">
+                        <span>🏷 {{ promo.code }}</span>
+                        <span class="rounded bg-emerald-200/60 px-1.5 py-0.5 text-[10px] text-emerald-900">Applied</span>
+                      </div>
+                      <div class="text-emerald-700">
+                        -{{ effectiveDiscount() | currency }} off food subtotal
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      (click)="removePromo()"
+                      class="text-xs font-semibold text-emerald-800 hover:text-red-600 underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                } @else if (auth.isAuthenticated()) {
+                  <div class="space-y-1.5">
+                    <div class="flex gap-2">
+                      <input
+                        type="text"
+                        [(ngModel)]="promoInput"
+                        placeholder="Promo code"
+                        class="w-full uppercase rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-mono tracking-wider focus:border-slate-900 focus:outline-none"
+                        (keydown.enter)="applyPromo()"
+                      />
+                      <button
+                        type="button"
+                        (click)="applyPromo()"
+                        [disabled]="validatingPromo() || !promoInput.trim()"
+                        class="shrink-0 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        {{ validatingPromo() ? 'Checking...' : 'Apply' }}
+                      </button>
+                    </div>
+                    @if (promoError()) {
+                      <p class="text-[11px] text-red-600">{{ promoError() }}</p>
+                    }
+                  </div>
+                } @else {
+                  <div class="rounded-lg bg-slate-50 p-2.5 text-xs text-slate-600 border border-slate-200 flex items-center justify-between">
+                    <span>Have a promo code?</span>
+                    <a
+                      routerLink="/login"
+                      [queryParams]="{ returnUrl: '/' + activeStore.slug }"
+                      class="font-semibold text-slate-900 underline hover:text-slate-700"
+                    >
+                      Sign in to apply
+                    </a>
+                  </div>
+                }
+              </div>
+
               <div class="space-y-1 border-t border-slate-200 pt-3 text-sm">
                 <div class="flex items-center justify-between text-slate-600">
                   <span>Food Subtotal</span>
                   <span>{{ cart.totalAmount() | currency }}</span>
                 </div>
+                @if (effectiveDiscount() > 0) {
+                  <div class="flex items-center justify-between text-emerald-700 font-medium">
+                    <span>Promo Discount ({{ appliedPromo()?.code }})</span>
+                    <span>-{{ effectiveDiscount() | currency }}</span>
+                  </div>
+                }
                 @if (orderType() === OrderType.Delivery) {
                   <div class="flex items-center justify-between text-slate-600">
                     <span>Delivery Fee</span>
@@ -443,6 +507,10 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
   readonly customizingItem = signal<MenuItem | null>(null);
   readonly selectedOptionsByGroup = signal<Record<string, string[]>>({});
   readonly recentGuestOrderId = signal<string | null>(null);
+  readonly appliedPromo = signal<ValidatePromoResponse | null>(null);
+  readonly validatingPromo = signal(false);
+  readonly promoError = signal<string | null>(null);
+  promoInput = '';
   customerName = '';
   customerPhone = '';
   customerEmail = '';
@@ -462,8 +530,22 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
     return st.deliveryFee ?? 0;
   });
 
+  readonly effectiveDiscount = computed(() => {
+    const promo = this.appliedPromo();
+    if (!promo) return 0;
+    const subtotal = this.cart.totalAmount();
+    if (subtotal <= 0) return 0;
+    if (promo.discountType === PromoDiscountType.Percentage) {
+      return Math.min(subtotal, Math.round(subtotal * (promo.discountValue / 100) * 100) / 100);
+    }
+    return Math.min(subtotal, promo.discountValue);
+  });
+
   readonly finalOrderTotal = computed(() => {
-    return this.cart.totalAmount() + this.currentDeliveryFee();
+    const subtotal = this.cart.totalAmount();
+    const discount = this.effectiveDiscount();
+    const foodTotal = Math.max(0, subtotal - discount);
+    return foodTotal + this.currentDeliveryFee();
   });
 
   readonly isBelowDeliveryMinimum = computed(() => {
@@ -618,6 +700,36 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
     this.closeCustomize();
   }
 
+  applyPromo(): void {
+    const code = this.promoInput.trim();
+    if (!code) {
+      return;
+    }
+    this.promoError.set(null);
+    this.validatingPromo.set(true);
+
+    this.api.validatePromo(code, this.cart.totalAmount()).subscribe({
+      next: (res) => {
+        this.validatingPromo.set(false);
+        if (res.isValid) {
+          this.appliedPromo.set(res);
+          this.promoInput = '';
+        } else {
+          this.promoError.set(res.message || res.error || 'Invalid promo code.');
+        }
+      },
+      error: (err) => {
+        this.validatingPromo.set(false);
+        this.promoError.set(err?.error?.error ?? err?.error?.message ?? 'Promo code could not be applied.');
+      }
+    });
+  }
+
+  removePromo(): void {
+    this.appliedPromo.set(null);
+    this.promoError.set(null);
+  }
+
   checkout(): void {
     this.orderError.set(null);
 
@@ -663,12 +775,14 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
         customerEmail: this.customerEmail.trim() || null,
         deliveryAddress: this.orderType() === OrderType.Delivery ? address : null,
         deliveryLandmark: this.orderType() === OrderType.Delivery ? (this.deliveryLandmark.trim() || null) : null,
+        promoCode: this.appliedPromo()?.code ?? null,
         notes: this.notes
       })
       .subscribe({
         next: (createdOrder) => {
           this.submitting.set(false);
           this.cart.clear();
+          this.removePromo();
           this.notes = '';
 
           if (isGuest) {
@@ -680,7 +794,7 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.submitting.set(false);
-          this.orderError.set(err?.error?.error ?? 'Could not place order.');
+          this.orderError.set(err?.error?.error ?? err?.error?.message ?? 'Could not place order.');
         }
       });
   }

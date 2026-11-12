@@ -1,5 +1,6 @@
 using FoodOrdering.Application.Catalog;
 using FoodOrdering.Application.Orders;
+using FoodOrdering.Application.Promos;
 using FoodOrdering.Application.Stores;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<CategoryService>();
         services.AddScoped<MenuItemService>();
         services.AddScoped<MenuItemImageService>();
+        services.AddScoped<PromoService>();
         services.AddScoped<OrderService>();
 
         return services;

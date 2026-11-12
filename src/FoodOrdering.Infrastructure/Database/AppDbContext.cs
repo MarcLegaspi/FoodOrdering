@@ -2,6 +2,7 @@ using FoodOrdering.Application.Common.Interfaces;
 using FoodOrdering.Domain.Catalog;
 using FoodOrdering.Domain.Common;
 using FoodOrdering.Domain.Orders;
+using FoodOrdering.Domain.Promos;
 using FoodOrdering.Domain.Stores;
 using FoodOrdering.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -29,6 +30,8 @@ public sealed class AppDbContext(
 
     public DbSet<MenuItemOption> MenuItemOptions => Set<MenuItemOption>();
 
+    public DbSet<PromoCode> PromoCodes => Set<PromoCode>();
+
     public DbSet<Order> Orders => Set<Order>();
 
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
@@ -53,6 +56,9 @@ public sealed class AppDbContext(
 
         modelBuilder.Entity<MenuItemOption>()
             .HasQueryFilter(o => _tenantContext.StoreId != null && o.OptionGroup.MenuItem.StoreId == _tenantContext.StoreId);
+
+        modelBuilder.Entity<PromoCode>()
+            .HasQueryFilter(p => _tenantContext.StoreId != null && p.StoreId == _tenantContext.StoreId);
 
         modelBuilder.Entity<Order>()
             .HasQueryFilter(o => _tenantContext.StoreId != null && o.StoreId == _tenantContext.StoreId);

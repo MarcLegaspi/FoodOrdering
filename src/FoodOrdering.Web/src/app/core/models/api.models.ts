@@ -24,6 +24,11 @@ export enum CustomerType {
   WalkIn = 3
 }
 
+export enum PromoDiscountType {
+  Percentage = 1,
+  FixedAmount = 2
+}
+
 export interface ManagedStore {
   storePublicId: string;
   slug: string;
@@ -176,6 +181,8 @@ export interface Order {
   deliveryAddress: string | null;
   deliveryLandmark?: string | null;
   subtotal: number;
+  promoCode?: string | null;
+  discountAmount: number;
   deliveryFee: number;
   totalAmount: number;
   estimatedDeliveryTime?: string;
@@ -192,7 +199,40 @@ export interface PlaceOrderRequest {
   customerEmail?: string | null;
   deliveryAddress?: string | null;
   deliveryLandmark?: string | null;
+  promoCode?: string | null;
   notes?: string | null;
+}
+
+export interface PromoCode {
+  publicId: string;
+  code: string;
+  discountType: PromoDiscountType;
+  discountValue: number;
+  maxUses?: number | null;
+  usedCount: number;
+  startsAtUtc?: string | null;
+  expiresAtUtc?: string | null;
+  isActive: boolean;
+  createdAtUtc: string;
+}
+
+export interface CreatePromoCodeRequest {
+  code: string;
+  discountType: PromoDiscountType;
+  discountValue: number;
+  maxUses?: number | null;
+  startsAtUtc?: string | null;
+  expiresAtUtc?: string | null;
+}
+
+export interface ValidatePromoResponse {
+  isValid: boolean;
+  code: string;
+  discountType: PromoDiscountType;
+  discountValue: number;
+  discountAmount: number;
+  message?: string | null;
+  error?: string | null;
 }
 
 export interface StoreMember {

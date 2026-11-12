@@ -10,6 +10,9 @@ import {
   Order,
   OrderStatus,
   PlaceOrderRequest,
+  PromoCode,
+  CreatePromoCodeRequest,
+  ValidatePromoResponse,
   SaveMenuItemRequest,
   Store,
   StoreMember,
@@ -117,6 +120,27 @@ export class FoodOrderingApiService {
 
   updateOrderStatus(publicId: string, status: OrderStatus): Observable<Order> {
     return this.http.patch<Order>(`${this.api}/orders/${publicId}/status`, { status });
+  }
+
+  // Promos
+  validatePromo(code: string, subtotal: number): Observable<ValidatePromoResponse> {
+    return this.http.post<ValidatePromoResponse>(`${this.api}/promos/validate`, { code, subtotal });
+  }
+
+  getStorePromos(): Observable<PromoCode[]> {
+    return this.http.get<PromoCode[]>(`${this.api}/promos`);
+  }
+
+  createPromo(payload: CreatePromoCodeRequest): Observable<PromoCode> {
+    return this.http.post<PromoCode>(`${this.api}/promos`, payload);
+  }
+
+  togglePromo(publicId: string): Observable<PromoCode> {
+    return this.http.patch<PromoCode>(`${this.api}/promos/${publicId}/toggle`, {});
+  }
+
+  deletePromo(publicId: string): Observable<void> {
+    return this.http.delete<void>(`${this.api}/promos/${publicId}`);
   }
 
   // Store Members

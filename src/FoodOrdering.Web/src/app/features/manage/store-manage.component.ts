@@ -11,6 +11,8 @@ import {
   Order,
   OrderStatus,
   OrderType,
+  PromoCode,
+  PromoDiscountType,
   SaveMenuItemOptionGroupRequest,
   SaveMenuItemRequest,
   Store,
@@ -80,6 +82,13 @@ import { resolveImageUrl } from '../../core/utils/media-url';
             [class]="tab() === 'menu' ? 'rounded-md bg-slate-900 px-3 py-1.5 text-white' : 'px-3 py-1.5 text-slate-600'"
           >
             Menu ({{ menuItems().length }})
+          </button>
+          <button
+            type="button"
+            (click)="switchToPromos()"
+            [class]="tab() === 'promos' ? 'rounded-md bg-slate-900 px-3 py-1.5 text-white' : 'px-3 py-1.5 text-slate-600'"
+          >
+            Promos ({{ promos().length }})
           </button>
           @if (isManager()) {
             <button
@@ -172,6 +181,11 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                   </span>
                   <div class="text-right">
                     <span class="font-bold text-slate-900">{{ order.totalAmount | currency }}</span>
+                    @if (order.discountAmount > 0) {
+                      <div class="text-[11px] font-semibold text-emerald-600">
+                        Promo ({{ order.promoCode }}): -{{ order.discountAmount | currency }}
+                      </div>
+                    }
                     @if (order.orderType === OrderType.Delivery) {
                       <div class="text-[11px] text-slate-500">
                         Food: {{ order.subtotal | currency }} · Delivery: {{ order.deliveryFee > 0 ? (order.deliveryFee | currency) : 'FREE' }}
@@ -596,6 +610,203 @@ import { resolveImageUrl } from '../../core/utils/media-url';
         </div>
       }
 
+      <!-- PROMOS TAB -->
+      @if (tab() === 'promos') {
+        <div class="grid gap-6 lg:grid-cols-3">
+          @if (isManager()) {
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 class="text-lg font-bold text-slate-900">Create Promo Code</h2>
+              <p class="mt-1 text-xs text-slate-500">Add discounts for registered customer orders.</p>
+
+              <form (ngSubmit)="createPromo()" class="mt-4 space-y-4">
+                <div>
+                  <label class="mb-1 block text-xs font-semibold text-slate-700">Promo Code</label>
+                  <input
+                    type="text"
+                    name="promoCode"
+                    [(ngModel)]="promoCode"
+                    placeholder="e.g. SAVE10 or WELCOME5"
+                    class="w-full uppercase rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-wider"
+                    required
+                  />
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="mb-1 block text-xs font-semibold text-slate-700">Type</label>
+                    <select
+                      name="promoDiscountType"
+                      [(ngModel)]="promoDiscountType"
+                      class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white"
+                    >
+                      <option [ngValue]="PromoDiscountType.Percentage">Percentage (%)</option>
+                      <option [ngValue]="PromoDiscountType.FixedAmount">Cash Off ($)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="mb-1 block text-xs font-semibold text-slate-700">
+                      {{ promoDiscountType === PromoDiscountType.Percentage ? 'Discount (%)' : 'Discount ($)' }}
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0.01"
+                      name="promoDiscountValue"
+                      [(ngModel)]="promoDiscountValue"
+                      class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label class="mb-1 block text-xs font-semibold text-slate-700">
+                    Max Claims / Redemptions <span class="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    name="promoMaxUses"
+                    [(ngModel)]="promoMaxUses"
+                    placeholder="e.g. 10 (leave empty for unlimited)"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                  <p class="mt-1 text-[11px] text-slate-400">Total claims across all customers before auto-disabling.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label class="mb-1 block text-xs font-semibold text-slate-700">
+                      Starts At <span class="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      name="promoStartsAt"
+                      [(ngModel)]="promoStartsAt"
+                      class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label class="mb-1 block text-xs font-semibold text-slate-700">
+                      Expires At <span class="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      name="promoExpiresAt"
+                      [(ngModel)]="promoExpiresAt"
+                      class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  class="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition"
+                >
+                  Create Promo Code
+                </button>
+              </form>
+            </div>
+          }
+
+          <div [class]="isManager() ? 'lg:col-span-2' : 'lg:col-span-3'">
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h2 class="text-lg font-bold text-slate-900">Promo Codes ({{ promos().length }})</h2>
+                  <p class="text-xs text-slate-500">Applicable only for registered customers during checkout.</p>
+                </div>
+                <button
+                  type="button"
+                  (click)="loadPromos()"
+                  class="rounded border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              @if (promos().length === 0) {
+                <p class="mt-6 rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
+                  No promo codes created yet. Create your first discount code!
+                </p>
+              } @else {
+                <div class="mt-4 divide-y divide-slate-100">
+                  @for (promo of promos(); track promo.publicId) {
+                    <div class="flex flex-wrap items-center justify-between gap-4 py-3.5">
+                      <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                          <span class="rounded bg-slate-100 px-2.5 py-1 font-mono text-sm font-bold text-slate-900">
+                            {{ promo.code }}
+                          </span>
+                          <span
+                            class="rounded-full px-2 py-0.5 text-xs font-semibold"
+                            [class]="promo.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'"
+                          >
+                            {{ promo.isActive ? 'Active' : 'Inactive' }}
+                          </span>
+                          @if (isPromoUpcoming(promo)) {
+                            <span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                              Upcoming (Starts {{ promo.startsAtUtc | date: 'short' }})
+                            </span>
+                          }
+                          @if (promo.maxUses && promo.usedCount >= promo.maxUses) {
+                            <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                              Limit Reached
+                            </span>
+                          }
+                        </div>
+                        <div class="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
+                          <span class="font-medium text-slate-800">
+                            Discount: {{ promo.discountType === PromoDiscountType.Percentage ? (promo.discountValue + '% off') : ('$' + promo.discountValue + ' off') }}
+                          </span>
+                          <span>
+                            Claims: <strong>{{ promo.usedCount }}</strong> / {{ promo.maxUses ? promo.maxUses : '∞' }}
+                          </span>
+                          @if (promo.startsAtUtc) {
+                            <span>
+                              Starts: {{ promo.startsAtUtc | date: 'short' }}
+                            </span>
+                          }
+                          @if (promo.expiresAtUtc) {
+                            <span>
+                              Expires: {{ promo.expiresAtUtc | date: 'short' }}
+                            </span>
+                          } @else if (!promo.startsAtUtc) {
+                            <span class="text-slate-400">Always valid</span>
+                          }
+                        </div>
+                      </div>
+
+                      @if (isManager()) {
+                        <div class="flex items-center gap-2">
+                          <button
+                            type="button"
+                            (click)="togglePromo(promo.publicId)"
+                            class="rounded-lg border px-3 py-1.5 text-xs font-medium transition"
+                            [class]="promo.isActive
+                              ? 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                              : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'"
+                          >
+                            {{ promo.isActive ? 'Deactivate' : 'Activate' }}
+                          </button>
+                          <button
+                            type="button"
+                            (click)="deletePromo(promo.publicId)"
+                            class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+
       <!-- TEAM TAB -->
       @if (tab() === 'team' && isManager()) {
         <div class="grid gap-6 lg:grid-cols-2">
@@ -814,6 +1025,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   readonly OrderType = OrderType;
   readonly CustomerType = CustomerType;
   readonly StoreRole = StoreRole;
+  readonly PromoDiscountType = PromoDiscountType;
   readonly imageUrl = resolveImageUrl;
 
   readonly orderStatusOptions: Array<{ label: string; value: OrderStatus | null }> = [
@@ -828,12 +1040,13 @@ export class StoreManageComponent implements OnInit, OnDestroy {
 
   readonly storeSlug = signal('');
   readonly store = signal<Store | null>(null);
-  readonly tab = signal<'orders' | 'menu' | 'team' | 'settings'>('orders');
+  readonly tab = signal<'orders' | 'menu' | 'promos' | 'team' | 'settings'>('orders');
   readonly orders = signal<Order[]>([]);
   readonly orderStatusFilter = signal<OrderStatus | null>(null);
   readonly soundEnabled = signal(this.loadSoundPreference());
   readonly categories = signal<Category[]>([]);
   readonly menuItems = signal<MenuItem[]>([]);
+  readonly promos = signal<PromoCode[]>([]);
   readonly members = signal<StoreMember[]>([]);
   readonly liveAlert = signal<string | null>(null);
   readonly message = signal<string | null>(null);
@@ -887,6 +1100,13 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   storeMinimumDeliveryOrder = 0;
   storeFreeDeliveryThreshold: number | null = null;
   storeEstimatedDeliveryTime = '';
+
+  promoCode = '';
+  promoDiscountType: PromoDiscountType = PromoDiscountType.Percentage;
+  promoDiscountValue = 10;
+  promoMaxUses: number | null = null;
+  promoStartsAt = '';
+  promoExpiresAt = '';
 
   ngOnInit(): void {
     this.liveSubscriptions.add(
@@ -972,6 +1192,81 @@ export class StoreManageComponent implements OnInit, OnDestroy {
 
   roleText(role: StoreRole): string {
     return storeRoleLabel(role);
+  }
+
+  switchToPromos(): void {
+    this.tab.set('promos');
+    this.loadPromos();
+  }
+
+  loadPromos(): void {
+    this.api.getStorePromos().subscribe({
+      next: (list) => this.promos.set(list),
+      error: (err) => this.setError(err, 'Could not load promo codes.')
+    });
+  }
+
+  isPromoUpcoming(promo: PromoCode): boolean {
+    return !!promo.startsAtUtc && new Date(promo.startsAtUtc).getTime() > Date.now();
+  }
+
+  createPromo(): void {
+    if (!this.promoCode.trim()) {
+      this.error.set('Promo code name is required.');
+      return;
+    }
+    if (this.promoDiscountValue <= 0) {
+      this.error.set('Discount value must be greater than zero.');
+      return;
+    }
+    if (this.promoStartsAt && this.promoExpiresAt && new Date(this.promoStartsAt) > new Date(this.promoExpiresAt)) {
+      this.error.set('Starts At date cannot be later than Expires At date.');
+      return;
+    }
+    this.clearAlerts();
+    this.api.createPromo({
+      code: this.promoCode.trim(),
+      discountType: this.promoDiscountType,
+      discountValue: this.promoDiscountValue,
+      maxUses: this.promoMaxUses && this.promoMaxUses > 0 ? this.promoMaxUses : null,
+      startsAtUtc: this.promoStartsAt ? new Date(this.promoStartsAt).toISOString() : null,
+      expiresAtUtc: this.promoExpiresAt ? new Date(this.promoExpiresAt).toISOString() : null
+    }).subscribe({
+      next: () => {
+        this.message.set('Promo code created successfully.');
+        this.promoCode = '';
+        this.promoDiscountValue = 10;
+        this.promoMaxUses = null;
+        this.promoStartsAt = '';
+        this.promoExpiresAt = '';
+        this.loadPromos();
+      },
+      error: (err) => this.setError(err, 'Could not create promo code.')
+    });
+  }
+
+  togglePromo(publicId: string): void {
+    this.clearAlerts();
+    this.api.togglePromo(publicId).subscribe({
+      next: () => {
+        this.loadPromos();
+      },
+      error: (err) => this.setError(err, 'Could not toggle promo code status.')
+    });
+  }
+
+  deletePromo(publicId: string): void {
+    if (!confirm('Are you sure you want to delete this promo code?')) {
+      return;
+    }
+    this.clearAlerts();
+    this.api.deletePromo(publicId).subscribe({
+      next: () => {
+        this.message.set('Promo code deleted.');
+        this.loadPromos();
+      },
+      error: (err) => this.setError(err, 'Could not delete promo code.')
+    });
   }
 
   switchToTeam(): void {
@@ -1311,6 +1606,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     }
     this.refreshOrders();
     this.refreshMenu();
+    this.loadPromos();
   }
 
   private applyStoreProfile(store: Store): void {

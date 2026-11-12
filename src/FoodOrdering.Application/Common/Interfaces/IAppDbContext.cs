@@ -1,5 +1,6 @@
 using FoodOrdering.Domain.Catalog;
 using FoodOrdering.Domain.Orders;
+using FoodOrdering.Domain.Promos;
 using FoodOrdering.Domain.Stores;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,6 +19,8 @@ public interface IAppDbContext
     DbSet<MenuItemOptionGroup> MenuItemOptionGroups { get; }
 
     DbSet<MenuItemOption> MenuItemOptions { get; }
+
+    DbSet<PromoCode> PromoCodes { get; }
 
     DbSet<Order> Orders { get; }
 

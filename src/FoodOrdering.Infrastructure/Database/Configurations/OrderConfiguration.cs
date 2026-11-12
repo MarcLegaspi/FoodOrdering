@@ -14,6 +14,7 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             t.HasCheckConstraint("CK_orders_TotalAmount_NonNegative", "\"TotalAmount\" >= 0");
             t.HasCheckConstraint("CK_orders_Subtotal_NonNegative", "\"Subtotal\" >= 0");
             t.HasCheckConstraint("CK_orders_DeliveryFee_NonNegative", "\"DeliveryFee\" >= 0");
+            t.HasCheckConstraint("CK_orders_DiscountAmount_NonNegative", "\"DiscountAmount\" >= 0");
         });
 
         builder.HasKey(o => o.Id);
@@ -67,6 +68,14 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasMaxLength(300);
 
         builder.Property(o => o.Subtotal)
+            .IsRequired()
+            .HasPrecision(18, 2)
+            .HasDefaultValue(0m);
+
+        builder.Property(o => o.PromoCodeSnapshot)
+            .HasMaxLength(32);
+
+        builder.Property(o => o.DiscountAmount)
             .IsRequired()
             .HasPrecision(18, 2)
             .HasDefaultValue(0m);

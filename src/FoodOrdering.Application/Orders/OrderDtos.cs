@@ -15,7 +15,8 @@ public sealed record PlaceOrderRequest(
     string? Notes = null,
     string CustomerName = "",
     string? CustomerEmail = null,
-    string? DeliveryLandmark = null);
+    string? DeliveryLandmark = null,
+    string? PromoCode = null);
 
 public sealed record UpdateOrderStatusRequest(OrderStatus Status);
 
@@ -46,6 +47,8 @@ public sealed record OrderResponse(
     string? DeliveryAddress,
     string? DeliveryLandmark,
     decimal Subtotal,
+    string? PromoCode,
+    decimal DiscountAmount,
     decimal DeliveryFee,
     decimal TotalAmount,
     string EstimatedDeliveryTime,

@@ -67,6 +67,7 @@ app.MapStoreEndpoints();
 app.MapStoreMemberEndpoints();
 app.MapCategoryEndpoints();
 app.MapMenuItemEndpoints();
+app.MapPromoEndpoints();
 app.MapOrderEndpoints();
 app.MapHub<OrderHub>("/hubs/orders");
 

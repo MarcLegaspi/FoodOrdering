@@ -56,6 +56,9 @@ import { TenantService } from '../../core/tenant/tenant.service';
                   </span>
                   <div class="text-right">
                     <span class="font-bold text-slate-900">{{ order.totalAmount | currency }}</span>
+                    @if (order.discountAmount > 0) {
+                      <div class="text-[10px] font-semibold text-emerald-600">Promo: -{{ order.discountAmount | currency }}</div>
+                    }
                     @if (order.orderType === OrderType.Delivery && order.deliveryFee > 0) {
                       <div class="text-[10px] text-slate-400">incl. {{ order.deliveryFee | currency }} delivery</div>
                     }
