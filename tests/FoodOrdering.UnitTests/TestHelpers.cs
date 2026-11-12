@@ -12,16 +12,25 @@ internal sealed class TestTenantContext(long? storeId = null, string? storeSlug 
     public string? StoreSlug { get; set; } = storeSlug;
 }
 
-internal sealed class TestCurrentUser(
-    Guid? userId = null,
-    bool isAuthenticated = false,
-    params string[] roles) : ICurrentUser
+internal sealed class TestCurrentUser : ICurrentUser
 {
-    private readonly HashSet<string> _roles = new(roles, StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _roles;
 
-    public Guid? UserId { get; set; } = userId;
+    public TestCurrentUser(
+        Guid? userId = null,
+        bool isAuthenticated = false,
+        params string[] roles)
+    {
+        UserId = userId;
+        IsAuthenticated = isAuthenticated;
+        _roles = new(roles, StringComparer.OrdinalIgnoreCase);
+    }
 
-    public bool IsAuthenticated { get; set; } = isAuthenticated;
+    public Guid? UserId { get; set; }
+
+    public string? Email { get; set; }
+
+    public bool IsAuthenticated { get; set; }
 
     public bool IsInRole(string role) => _roles.Contains(role);
 }

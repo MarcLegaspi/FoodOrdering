@@ -18,6 +18,12 @@ export enum OrderType {
   Delivery = 2
 }
 
+export enum CustomerType {
+  Registered = 1,
+  Guest = 2,
+  WalkIn = 3
+}
+
 export interface ManagedStore {
   storePublicId: string;
   slug: string;
@@ -153,6 +159,9 @@ export interface Order {
   storeSlug: string;
   storeName: string;
   orderNumber: string;
+  customerType: CustomerType;
+  customerName: string;
+  customerEmail?: string | null;
   status: OrderStatus;
   orderType: OrderType;
   customerPhone: string;
@@ -166,7 +175,9 @@ export interface Order {
 export interface PlaceOrderRequest {
   items: { menuItemPublicId: string; quantity: number; selectedOptionPublicIds?: string[] }[];
   orderType: OrderType;
+  customerName?: string;
   customerPhone: string;
+  customerEmail?: string | null;
   deliveryAddress?: string | null;
   notes?: string | null;
 }

@@ -95,6 +95,10 @@ export class FoodOrderingApiService {
     return this.http.post<Order>(`${this.api}/orders`, payload);
   }
 
+  getOrderByPublicId(publicId: string): Observable<Order> {
+    return this.http.get<Order>(`${this.api}/orders/${publicId}`);
+  }
+
   getMyOrders(): Observable<Order[]> {
     return this.http.get<Order[]>(`${this.api}/orders/my`);
   }

@@ -46,6 +46,14 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 This store is currently closed and not accepting new orders.
               </p>
             }
+            @if (!auth.isAuthenticated() && recentGuestOrderId(); as recentId) {
+              <div class="mt-3 flex items-center justify-between rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-900 border border-indigo-100">
+                <span>Have an active order with this store?</span>
+                <a [routerLink]="['/', activeStore.slug, 'orders', recentId]" class="font-bold underline hover:text-indigo-700">
+                  Track Recent Order →
+                </a>
+              </div>
+            }
           </div>
 
           @if (menuItems().length > 0) {
@@ -200,11 +208,27 @@ import { resolveImageUrl } from '../../core/utils/media-url';
               </div>
 
               <input
+                type="text"
+                [(ngModel)]="customerName"
+                placeholder="Your full name"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+              />
+
+              <input
                 type="tel"
                 [(ngModel)]="customerPhone"
                 placeholder="Contact phone number"
                 class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
               />
+
+              @if (!auth.isAuthenticated()) {
+                <input
+                  type="email"
+                  [(ngModel)]="customerEmail"
+                  placeholder="Email (optional, for receipt)"
+                  class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                />
+              }
 
               @if (orderType() === OrderType.Delivery) {
                 <textarea
@@ -227,23 +251,34 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 <span>{{ cart.totalAmount() | currency }}</span>
               </div>
 
-              @if (auth.isAuthenticated()) {
-                <button
-                  type="button"
-                  [disabled]="submitting() || !activeStore.isAcceptingOrders"
-                  (click)="checkout()"
-                  class="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {{ !activeStore.isAcceptingOrders ? 'Store Closed' : (submitting() ? 'Placing order...' : 'Place Order') }}
-                </button>
-              } @else {
-                <a
-                  routerLink="/login"
-                  [queryParams]="{ returnUrl: '/' + activeStore.slug }"
-                  class="block w-full rounded-lg bg-slate-900 py-2.5 text-center text-sm font-semibold text-white hover:bg-slate-800"
-                >
-                  Sign in to Place Order
-                </a>
+              <button
+                type="button"
+                [disabled]="submitting() || !activeStore.isAcceptingOrders"
+                (click)="checkout()"
+                class="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                @if (!activeStore.isAcceptingOrders) {
+                  Store Closed
+                } @else if (submitting()) {
+                  Placing order...
+                } @else if (auth.isAuthenticated()) {
+                  Place Order
+                } @else {
+                  Place Order as Guest
+                }
+              </button>
+
+              @if (!auth.isAuthenticated()) {
+                <div class="text-center text-xs text-slate-500">
+                  Already have an account?
+                  <a
+                    routerLink="/login"
+                    [queryParams]="{ returnUrl: '/' + activeStore.slug }"
+                    class="font-semibold text-slate-900 underline hover:text-slate-700 ml-1"
+                  >
+                    Sign in
+                  </a>
+                </div>
               }
             </div>
           }
@@ -340,7 +375,10 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
   readonly orderType = signal<OrderType>(OrderType.Pickup);
   readonly customizingItem = signal<MenuItem | null>(null);
   readonly selectedOptionsByGroup = signal<Record<string, string[]>>({});
+  readonly recentGuestOrderId = signal<string | null>(null);
+  customerName = '';
   customerPhone = '';
+  customerEmail = '';
   deliveryAddress = '';
   notes = '';
 
@@ -401,6 +439,7 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    this.readRecentGuestOrder();
     this.route.paramMap.subscribe((params) => {
       const slug = params.get('storeSlug');
       if (!slug) {
@@ -470,6 +509,14 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
   checkout(): void {
     this.orderError.set(null);
 
+    const isGuest = !this.auth.isAuthenticated();
+    const name = this.customerName.trim() || (this.auth.user()?.fullName ?? '');
+
+    if (isGuest && !name) {
+      this.orderError.set('Please enter your full name.');
+      return;
+    }
+
     const phone = this.customerPhone.trim();
     if (!phone) {
       this.orderError.set('Please enter your contact phone number.');
@@ -492,22 +539,56 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
           selectedOptionPublicIds: i.selectedOptions.map((o) => o.publicId)
         })),
         orderType: this.orderType(),
+        customerName: name,
         customerPhone: phone,
+        customerEmail: this.customerEmail.trim() || null,
         deliveryAddress: this.orderType() === OrderType.Delivery ? address : null,
         notes: this.notes
       })
       .subscribe({
-        next: () => {
+        next: (createdOrder) => {
           this.submitting.set(false);
           this.cart.clear();
           this.notes = '';
-          void this.router.navigateByUrl('/orders');
+
+          if (isGuest) {
+            this.saveRecentGuestOrder(createdOrder.publicId);
+            void this.router.navigate(['/', createdOrder.storeSlug, 'orders', createdOrder.publicId]);
+          } else {
+            void this.router.navigateByUrl('/orders');
+          }
         },
         error: (err) => {
           this.submitting.set(false);
           this.orderError.set(err?.error?.error ?? 'Could not place order.');
         }
       });
+  }
+
+  private saveRecentGuestOrder(publicId: string): void {
+    try {
+      const key = 'food_ordering_guest_orders';
+      const existing: string[] = JSON.parse(localStorage.getItem(key) ?? '[]');
+      if (!existing.includes(publicId)) {
+        existing.unshift(publicId);
+        localStorage.setItem(key, JSON.stringify(existing.slice(0, 10)));
+      }
+      this.recentGuestOrderId.set(publicId);
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  private readRecentGuestOrder(): void {
+    try {
+      const key = 'food_ordering_guest_orders';
+      const existing: string[] = JSON.parse(localStorage.getItem(key) ?? '[]');
+      if (existing.length > 0) {
+        this.recentGuestOrderId.set(existing[0]);
+      }
+    } catch {
+      // Ignore storage errors
+    }
   }
 
   private resolveSelectedCartOptions(item: MenuItem): CartSelectedOption[] {

@@ -28,6 +28,7 @@ export class OrderLiveService {
   private connection: HubConnection | null = null;
   private startPromise: Promise<void> | null = null;
   private activeKitchenSlug: string | null = null;
+  private activeOrderPublicId: string | null = null;
 
   readonly connectionState = signal<'disconnected' | 'connecting' | 'connected'>('disconnected');
   readonly orderPlaced$ = new Subject<Order>();
@@ -36,7 +37,7 @@ export class OrderLiveService {
 
   constructor() {
     effect(() => {
-      if (!this.auth.token()) {
+      if (!this.auth.token() && !this.activeOrderPublicId) {
         void this.stop();
       }
     });
@@ -44,6 +45,40 @@ export class OrderLiveService {
 
   async connectForCustomer(): Promise<void> {
     await this.ensureConnected();
+  }
+
+  async joinOrder(orderPublicId: string): Promise<void> {
+    if (!orderPublicId) {
+      return;
+    }
+
+    this.activeOrderPublicId = orderPublicId;
+    const connected = await this.ensureConnected();
+    if (!connected || !this.connection) {
+      return;
+    }
+
+    try {
+      await this.connection.invoke('JoinOrder', orderPublicId);
+    } catch {
+      // Ignore transient join errors
+    }
+  }
+
+  async leaveOrder(orderPublicId: string): Promise<void> {
+    if (this.activeOrderPublicId === orderPublicId) {
+      this.activeOrderPublicId = null;
+    }
+
+    if (!this.connection || this.connection.state !== HubConnectionState.Connected || !orderPublicId) {
+      return;
+    }
+
+    try {
+      await this.connection.invoke('LeaveOrder', orderPublicId);
+    } catch {
+      // Ignore transient errors
+    }
   }
 
   async joinStoreKitchen(storeSlug: string): Promise<void> {
@@ -101,7 +136,7 @@ export class OrderLiveService {
   }
 
   private async ensureConnected(): Promise<boolean> {
-    if (!this.auth.token()) {
+    if (!this.auth.token() && !this.activeOrderPublicId) {
       return false;
     }
 
@@ -152,6 +187,13 @@ export class OrderLiveService {
       if (this.activeKitchenSlug) {
         try {
           await conn.invoke('JoinStoreKitchen', this.activeKitchenSlug);
+        } catch {
+          // Ignore join failure on reconnect
+        }
+      }
+      if (this.activeOrderPublicId) {
+        try {
+          await conn.invoke('JoinOrder', this.activeOrderPublicId);
         } catch {
           // Ignore join failure on reconnect
         }

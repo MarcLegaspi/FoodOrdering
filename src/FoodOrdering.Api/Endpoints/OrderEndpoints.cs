@@ -35,7 +35,17 @@ public static class OrderEndpoints
 
             return ToActionResult(result, createdRoute: true);
         })
-        .RequireAuthorization();
+        .AllowAnonymous();
+
+        group.MapGet("/{publicId:guid}", async (
+            Guid publicId,
+            OrderService orderService,
+            CancellationToken ct) =>
+        {
+            var result = await orderService.GetOrderByPublicIdAsync(publicId, ct);
+            return ToActionResult(result, createdRoute: false);
+        })
+        .AllowAnonymous();
 
         group.MapGet("/my", async (OrderService orderService, CancellationToken ct) =>
         {
@@ -104,6 +114,10 @@ public static class OrderEndpoints
         await hubContext.Clients
             .Group(OrderHub.StoreGroup(result.Order.StoreSlug))
             .SendAsync(storeEvent, result.Order, ct);
+
+        await hubContext.Clients
+            .Group(OrderHub.OrderGroup(result.Order.PublicId))
+            .SendAsync("OrderUpdated", result.Order, ct);
 
         if (result.CustomerUserId is Guid customerUserId)
         {

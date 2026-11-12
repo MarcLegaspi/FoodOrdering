@@ -30,6 +30,23 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Status)
             .IsRequired();
 
+        builder.Property(o => o.CustomerType)
+            .IsRequired()
+            .HasDefaultValue(CustomerType.Registered);
+
+        builder.HasIndex(o => o.CustomerType);
+
+        builder.Property(o => o.CustomerName)
+            .IsRequired()
+            .HasMaxLength(150)
+            .HasDefaultValue(string.Empty);
+
+        builder.Property(o => o.CustomerEmail)
+            .HasMaxLength(256);
+
+        builder.Property(o => o.CustomerUserId)
+            .IsRequired(false);
+
         builder.Property(o => o.OrderType)
             .IsRequired()
             .HasDefaultValue(OrderType.Pickup);
@@ -59,6 +76,7 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasOne<AppUser>()
             .WithMany()
             .HasForeignKey(o => o.CustomerUserId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

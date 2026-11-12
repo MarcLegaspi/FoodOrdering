@@ -13,7 +13,13 @@ public sealed class Order : AuditableEntity, ITenantEntity
 
     public Store Store { get; set; } = null!;
 
-    public Guid CustomerUserId { get; set; }
+    public CustomerType CustomerType { get; set; } = CustomerType.Registered;
+
+    public Guid? CustomerUserId { get; set; }
+
+    public string CustomerName { get; set; } = string.Empty;
+
+    public string? CustomerEmail { get; set; }
 
     public string OrderNumber { get; set; } = string.Empty;
 

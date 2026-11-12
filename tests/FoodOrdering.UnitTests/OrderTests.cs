@@ -230,4 +230,52 @@ public sealed class OrderTests
         Assert.Null(result.Order);
         Assert.Contains("closed", result.Error, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public async Task PlaceOrder_Allows_Guest_When_CustomerName_Provided_And_Sets_CustomerType_Guest()
+    {
+        var tenant = new TestTenantContext(storeId: 1);
+        await using var db = TestDbFactory.Create(tenant);
+        await TestDbFactory.SeedTwoStoresAsync(db);
+
+        var category = (await new CategoryService(db, tenant)
+            .CreateAsync(new CreateCategoryRequest("Burgers", 1))).Category!;
+        var burger = (await new MenuItemService(db, tenant)
+            .CreateAsync(new CreateMenuItemRequest(
+                category.PublicId, "Cheeseburger", "Classic", 10.00m))).Item!;
+
+        // Unauthenticated guest user
+        var guestUser = new TestCurrentUser(userId: null, isAuthenticated: false);
+        var orderService = new OrderService(db, tenant, guestUser);
+
+        // Missing guest customer name rejected
+        var rejected = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(burger.PublicId, 1)],
+            OrderType.Pickup,
+            CustomerPhone: "09170001122",
+            CustomerName: ""));
+        Assert.Null(rejected.Order);
+        Assert.Contains("name is required", rejected.Error, StringComparison.OrdinalIgnoreCase);
+
+        // Guest with name succeeds
+        var placed = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(burger.PublicId, 2)],
+            OrderType.Pickup,
+            CustomerPhone: "09170001122",
+            CustomerName: "Alex Guest",
+            CustomerEmail: "alex@example.com"));
+
+        Assert.NotNull(placed.Order);
+        Assert.Equal(CustomerType.Guest, placed.Order.CustomerType);
+        Assert.Equal("Alex Guest", placed.Order.CustomerName);
+        Assert.Equal("alex@example.com", placed.Order.CustomerEmail);
+        Assert.Equal(20.00m, placed.Order.TotalAmount);
+        Assert.Null(placed.CustomerUserId);
+
+        // Lookup by public ID succeeds without auth
+        var lookup = await orderService.GetOrderByPublicIdAsync(placed.Order.PublicId);
+        Assert.NotNull(lookup.Order);
+        Assert.Equal(placed.Order.OrderNumber, lookup.Order.OrderNumber);
+        Assert.Equal("Alex Guest", lookup.Order.CustomerName);
+    }
 }

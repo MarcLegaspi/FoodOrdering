@@ -16,9 +16,28 @@ public sealed class OrderService(
             return OrderResult.ValidationError("Store tenant context is required.");
         }
 
-        if (!currentUser.IsAuthenticated || currentUser.UserId is not Guid customerUserId)
+        CustomerType customerType;
+        Guid? customerUserId = null;
+        string customerName;
+
+        if (currentUser.IsAuthenticated && currentUser.UserId is Guid uid)
         {
-            return OrderResult.Forbidden("Authentication is required to place an order.");
+            customerType = CustomerType.Registered;
+            customerUserId = uid;
+            customerName = !string.IsNullOrWhiteSpace(request.CustomerName)
+                ? request.CustomerName.Trim()
+                : (currentUser.Email ?? "Registered Customer");
+        }
+        else
+        {
+            customerType = CustomerType.Guest;
+            customerUserId = null;
+            customerName = request.CustomerName?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(customerName))
+            {
+                return OrderResult.ValidationError("Customer name is required for guest checkout.");
+            }
         }
 
         if (request.Items is null || request.Items.Count == 0)
@@ -116,10 +135,17 @@ public sealed class OrderService(
             return OrderResult.ValidationError($"'{store.Name}' is currently closed and not accepting orders.");
         }
 
+        var customerEmail = !string.IsNullOrWhiteSpace(request.CustomerEmail)
+            ? request.CustomerEmail.Trim()
+            : (currentUser.IsAuthenticated ? currentUser.Email : null);
+
         var order = new Order
         {
             StoreId = storeId,
+            CustomerType = customerType,
             CustomerUserId = customerUserId,
+            CustomerName = customerName,
+            CustomerEmail = customerEmail,
             OrderNumber = GenerateOrderNumber(),
             Status = OrderStatus.Pending,
             OrderType = request.OrderType,
@@ -166,9 +192,12 @@ public sealed class OrderService(
             store.Slug,
             store.Name,
             order.OrderNumber,
+            order.CustomerType,
+            order.CustomerName,
             order.Status,
             order.OrderType,
             order.CustomerPhone,
+            order.CustomerEmail,
             order.DeliveryAddress,
             order.TotalAmount,
             order.Notes,
@@ -371,15 +400,38 @@ public sealed class OrderService(
     private static string GenerateOrderNumber() =>
         $"ORD-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
 
+    public async Task<OrderResult> GetOrderByPublicIdAsync(Guid publicId, CancellationToken ct = default)
+    {
+        var order = await db.Orders
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Include(o => o.Store)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.MenuItem)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.Options)
+            .FirstOrDefaultAsync(o => o.PublicId == publicId, ct);
+
+        if (order is null)
+        {
+            return OrderResult.NotFound("Order was not found.");
+        }
+
+        return OrderResult.Success(ToResponse(order), order.CustomerUserId);
+    }
+
     private static IQueryable<OrderResponse> ProjectOrders(IQueryable<Order> query) =>
         query.Select(o => new OrderResponse(
             o.PublicId,
             o.Store.Slug,
             o.Store.Name,
             o.OrderNumber,
+            o.CustomerType,
+            o.CustomerName,
             o.Status,
             o.OrderType,
             o.CustomerPhone,
+            o.CustomerEmail,
             o.DeliveryAddress,
             o.TotalAmount,
             o.Notes,
@@ -401,9 +453,12 @@ public sealed class OrderService(
             order.Store.Slug,
             order.Store.Name,
             order.OrderNumber,
+            order.CustomerType,
+            order.CustomerName,
             order.Status,
             order.OrderType,
             order.CustomerPhone,
+            order.CustomerEmail,
             order.DeliveryAddress,
             order.TotalAmount,
             order.Notes,

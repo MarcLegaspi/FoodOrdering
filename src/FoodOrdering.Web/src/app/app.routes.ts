@@ -37,6 +37,16 @@ export const routes: Routes = [
       import('./features/manage/store-manage.component').then((m) => m.StoreManageComponent)
   },
   {
+    path: ':storeSlug/orders/:publicId',
+    loadComponent: () =>
+      import('./features/orders/order-tracking.component').then((m) => m.OrderTrackingComponent)
+  },
+  {
+    path: 'orders/:publicId',
+    loadComponent: () =>
+      import('./features/orders/order-tracking.component').then((m) => m.OrderTrackingComponent)
+  },
+  {
     path: ':storeSlug',
     loadComponent: () =>
       import('./features/storefront/store-menu.component').then((m) => m.StoreMenuComponent)

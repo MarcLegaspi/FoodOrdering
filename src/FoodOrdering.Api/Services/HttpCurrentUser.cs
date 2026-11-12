@@ -14,6 +14,9 @@ public sealed class HttpCurrentUser(IHttpContextAccessor httpContextAccessor) : 
         }
     }
 
+    public string? Email =>
+        httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email);
+
     public bool IsAuthenticated =>
         httpContextAccessor.HttpContext?.User.Identity?.IsAuthenticated ?? false;
 

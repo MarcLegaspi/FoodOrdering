@@ -7,12 +7,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FoodOrdering.Api.Hubs;
 
-[Authorize]
 public sealed class OrderHub(IAppDbContext db) : Hub
 {
     public static string StoreGroup(string storeSlug) => $"store:{storeSlug.Trim().ToLowerInvariant()}";
 
     public static string UserGroup(Guid userId) => $"user:{userId}";
+
+    public static string OrderGroup(Guid orderPublicId) => $"order:{orderPublicId}";
 
     public override async Task OnConnectedAsync()
     {
@@ -24,6 +25,27 @@ public sealed class OrderHub(IAppDbContext db) : Hub
         await base.OnConnectedAsync();
     }
 
+    public async Task JoinOrder(Guid orderPublicId)
+    {
+        if (orderPublicId == Guid.Empty)
+        {
+            throw new HubException("Invalid order ID.");
+        }
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, OrderGroup(orderPublicId));
+    }
+
+    public Task LeaveOrder(Guid orderPublicId)
+    {
+        if (orderPublicId == Guid.Empty)
+        {
+            return Task.CompletedTask;
+        }
+
+        return Groups.RemoveFromGroupAsync(Context.ConnectionId, OrderGroup(orderPublicId));
+    }
+
+    [Authorize]
     public async Task JoinStoreKitchen(string storeSlug)
     {
         if (!TryGetUserId(out var userId))

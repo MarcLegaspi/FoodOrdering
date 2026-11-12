@@ -385,6 +385,17 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("CustomerEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasDefaultValue("");
+
                     b.Property<string>("CustomerPhone")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -392,7 +403,12 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("");
 
-                    b.Property<Guid>("CustomerUserId")
+                    b.Property<int>("CustomerType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
+                    b.Property<Guid?>("CustomerUserId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("DeliveryAddress")
@@ -433,6 +449,8 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CustomerType");
 
                     b.HasIndex("CustomerUserId");
 
@@ -932,8 +950,7 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                     b.HasOne("FoodOrdering.Infrastructure.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("CustomerUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("FoodOrdering.Domain.Stores.Store", "Store")
                         .WithMany("Orders")

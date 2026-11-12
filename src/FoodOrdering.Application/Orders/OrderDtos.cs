@@ -12,7 +12,9 @@ public sealed record PlaceOrderRequest(
     OrderType OrderType = OrderType.Pickup,
     string CustomerPhone = "",
     string? DeliveryAddress = null,
-    string? Notes = null);
+    string? Notes = null,
+    string CustomerName = "",
+    string? CustomerEmail = null);
 
 public sealed record UpdateOrderStatusRequest(OrderStatus Status);
 
@@ -34,9 +36,12 @@ public sealed record OrderResponse(
     string StoreSlug,
     string StoreName,
     string OrderNumber,
+    CustomerType CustomerType,
+    string CustomerName,
     OrderStatus Status,
     OrderType OrderType,
     string CustomerPhone,
+    string? CustomerEmail,
     string? DeliveryAddress,
     decimal TotalAmount,
     string Notes,

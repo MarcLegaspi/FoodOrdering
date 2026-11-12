@@ -6,6 +6,7 @@ import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import {
   Category,
+  CustomerType,
   MenuItem,
   Order,
   OrderStatus,
@@ -173,13 +174,24 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 </div>
               </div>
 
-              <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                <span>Phone: {{ order.customerPhone }}</span>
+              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                <span class="font-medium text-slate-800">
+                  👤 {{ order.customerName || 'Customer' }}
+                  @if (order.customerType === CustomerType.Guest) {
+                    <span class="ml-1 inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                      GUEST
+                    </span>
+                  }
+                </span>
+                <span>📞 {{ order.customerPhone }}</span>
+                @if (order.customerEmail) {
+                  <span>✉ {{ order.customerEmail }}</span>
+                }
                 @if (order.deliveryAddress) {
-                  <span>Deliver to: {{ order.deliveryAddress }}</span>
+                  <span>📍 Deliver to: {{ order.deliveryAddress }}</span>
                 }
                 @if (order.notes) {
-                  <span>Notes: {{ order.notes }}</span>
+                  <span class="italic">Notes: {{ order.notes }}</span>
                 }
               </div>
 
@@ -732,6 +744,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   private audioContext: AudioContext | null = null;
 
   readonly OrderStatus = OrderStatus;
+  readonly CustomerType = CustomerType;
   readonly StoreRole = StoreRole;
   readonly imageUrl = resolveImageUrl;
 
