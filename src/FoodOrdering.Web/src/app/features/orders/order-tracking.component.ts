@@ -131,8 +131,16 @@ import { OrderLiveService } from '../../core/services/order-live.service';
                 <p class="font-semibold text-slate-900">
                   {{ o.orderType === OrderType.Delivery ? 'Home Delivery' : 'Store Pickup' }}
                 </p>
+                @if (o.estimatedDeliveryTime) {
+                  <p class="text-xs font-medium text-slate-700">⏱ Est. Time: {{ o.estimatedDeliveryTime }}</p>
+                }
                 @if (o.orderType === OrderType.Delivery && o.deliveryAddress) {
                   <p class="text-slate-600">{{ o.deliveryAddress }}</p>
+                }
+                @if (o.orderType === OrderType.Delivery && o.deliveryLandmark) {
+                  <p class="text-xs text-amber-800 bg-amber-50 rounded px-1.5 py-0.5 inline-block">
+                    🏢 Landmark: {{ o.deliveryLandmark }}
+                  </p>
                 }
                 @if (o.notes) {
                   <p class="text-xs text-slate-500 italic mt-1">"{{ o.notes }}"</p>
@@ -170,9 +178,23 @@ import { OrderLiveService } from '../../core/services/order-live.service';
               </div>
 
               <!-- Total summary -->
-              <div class="mt-6 border-t border-slate-200 pt-4 flex items-center justify-between text-base font-bold text-slate-900">
-                <span>Total Amount</span>
-                <span>{{ o.totalAmount | currency }}</span>
+              <div class="mt-6 border-t border-slate-200 pt-4 space-y-1.5 text-sm">
+                <div class="flex items-center justify-between text-slate-600">
+                  <span>Food Subtotal</span>
+                  <span>{{ o.subtotal | currency }}</span>
+                </div>
+                @if (o.orderType === OrderType.Delivery) {
+                  <div class="flex items-center justify-between text-slate-600">
+                    <span>Delivery Fee</span>
+                    <span [class.text-emerald-700]="o.deliveryFee === 0" [class.font-semibold]="o.deliveryFee === 0">
+                      {{ o.deliveryFee > 0 ? (o.deliveryFee | currency) : 'FREE' }}
+                    </span>
+                  </div>
+                }
+                <div class="flex items-center justify-between font-bold text-base text-slate-900 pt-1 border-t border-slate-100">
+                  <span>Total Amount</span>
+                  <span>{{ o.totalAmount | currency }}</span>
+                </div>
               </div>
             </div>
           </div>

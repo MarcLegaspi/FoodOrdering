@@ -41,6 +41,28 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 {{ activeStore.openingHours }}
               </p>
             }
+
+            <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              @if (activeStore.estimatedDeliveryTime) {
+                <span class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
+                  ⏱ Est. Delivery: {{ activeStore.estimatedDeliveryTime }}
+                </span>
+              }
+              <span class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
+                🚗 Delivery Fee: {{ activeStore.deliveryFee > 0 ? (activeStore.deliveryFee | currency) : 'Free' }}
+              </span>
+              @if (activeStore.minimumDeliveryOrder > 0) {
+                <span class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
+                  Min. Delivery: {{ activeStore.minimumDeliveryOrder | currency }}
+                </span>
+              }
+              @if (activeStore.freeDeliveryThreshold) {
+                <span class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700 border border-emerald-200">
+                  Free Delivery Over {{ activeStore.freeDeliveryThreshold | currency }}
+                </span>
+              }
+            </div>
+
             @if (!activeStore.isAcceptingOrders) {
               <p class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 This store is currently closed and not accepting new orders.
@@ -234,9 +256,38 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 <textarea
                   rows="2"
                   [(ngModel)]="deliveryAddress"
-                  placeholder="Delivery address (street, unit, landmarks)"
+                  placeholder="Delivery street address"
                   class="w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-slate-900 focus:outline-none"
                 ></textarea>
+                <input
+                  type="text"
+                  [(ngModel)]="deliveryLandmark"
+                  placeholder="Unit, Landmark, Gate code (optional)"
+                  class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                />
+
+                @if (freeDeliveryProgress(); as fdp) {
+                  <div class="rounded-lg bg-emerald-50 p-2.5 text-xs border border-emerald-200">
+                    @if (fdp.qualified) {
+                      <div class="font-bold text-emerald-800">🎉 You unlocked FREE Delivery!</div>
+                    } @else {
+                      <div class="flex items-center justify-between text-emerald-900">
+                        <span>Add <strong>{{ fdp.remaining | currency }}</strong> more for FREE delivery</span>
+                        <span class="font-bold">{{ fdp.percent }}%</span>
+                      </div>
+                      <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-emerald-200">
+                        <div class="h-full bg-emerald-600 transition-all duration-300" [style.width.%]="fdp.percent"></div>
+                      </div>
+                    }
+                  </div>
+                }
+
+                @if (isBelowDeliveryMinimum()) {
+                  <div class="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900 border border-amber-200">
+                    ⚠️ Minimum order for delivery is <strong>{{ activeStore.minimumDeliveryOrder | currency }}</strong>.
+                    Add <strong>{{ deliveryMinimumRemaining() | currency }}</strong> more to place order.
+                  </div>
+                }
               }
 
               <textarea
@@ -246,19 +297,35 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 class="w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-slate-900 focus:outline-none"
               ></textarea>
 
-              <div class="flex items-center justify-between font-bold text-slate-900">
-                <span>Total</span>
-                <span>{{ cart.totalAmount() | currency }}</span>
+              <div class="space-y-1 border-t border-slate-200 pt-3 text-sm">
+                <div class="flex items-center justify-between text-slate-600">
+                  <span>Food Subtotal</span>
+                  <span>{{ cart.totalAmount() | currency }}</span>
+                </div>
+                @if (orderType() === OrderType.Delivery) {
+                  <div class="flex items-center justify-between text-slate-600">
+                    <span>Delivery Fee</span>
+                    <span [class.text-emerald-700]="currentDeliveryFee() === 0" [class.font-semibold]="currentDeliveryFee() === 0">
+                      {{ currentDeliveryFee() === 0 ? 'FREE' : (currentDeliveryFee() | currency) }}
+                    </span>
+                  </div>
+                }
+                <div class="flex items-center justify-between font-bold text-base text-slate-900 pt-1">
+                  <span>Total</span>
+                  <span>{{ finalOrderTotal() | currency }}</span>
+                </div>
               </div>
 
               <button
                 type="button"
-                [disabled]="submitting() || !activeStore.isAcceptingOrders"
+                [disabled]="submitting() || !activeStore.isAcceptingOrders || isBelowDeliveryMinimum()"
                 (click)="checkout()"
                 class="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 @if (!activeStore.isAcceptingOrders) {
                   Store Closed
+                } @else if (isBelowDeliveryMinimum()) {
+                  Below Delivery Minimum
                 } @else if (submitting()) {
                   Placing order...
                 } @else if (auth.isAuthenticated()) {
@@ -380,7 +447,52 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
   customerPhone = '';
   customerEmail = '';
   deliveryAddress = '';
+  deliveryLandmark = '';
   notes = '';
+
+  readonly currentDeliveryFee = computed(() => {
+    const st = this.store();
+    if (!st || this.orderType() !== OrderType.Delivery) {
+      return 0;
+    }
+    const subtotal = this.cart.totalAmount();
+    if (st.freeDeliveryThreshold && subtotal >= st.freeDeliveryThreshold) {
+      return 0;
+    }
+    return st.deliveryFee ?? 0;
+  });
+
+  readonly finalOrderTotal = computed(() => {
+    return this.cart.totalAmount() + this.currentDeliveryFee();
+  });
+
+  readonly isBelowDeliveryMinimum = computed(() => {
+    const st = this.store();
+    if (!st || this.orderType() !== OrderType.Delivery) {
+      return false;
+    }
+    return (st.minimumDeliveryOrder ?? 0) > 0 && this.cart.totalAmount() < st.minimumDeliveryOrder;
+  });
+
+  readonly deliveryMinimumRemaining = computed(() => {
+    const st = this.store();
+    if (!st || !this.isBelowDeliveryMinimum()) {
+      return 0;
+    }
+    return Math.max(0, st.minimumDeliveryOrder - this.cart.totalAmount());
+  });
+
+  readonly freeDeliveryProgress = computed(() => {
+    const st = this.store();
+    if (!st || this.orderType() !== OrderType.Delivery || !st.freeDeliveryThreshold) {
+      return null;
+    }
+    const subtotal = this.cart.totalAmount();
+    const threshold = st.freeDeliveryThreshold;
+    const remaining = Math.max(0, threshold - subtotal);
+    const percent = Math.min(100, Math.round((subtotal / threshold) * 100));
+    return { threshold, remaining, percent, qualified: subtotal >= threshold };
+  });
 
   readonly customizingUnitPrice = computed(() => {
     const item = this.customizingItem();
@@ -524,9 +636,16 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
     }
 
     const address = this.deliveryAddress.trim();
-    if (this.orderType() === OrderType.Delivery && !address) {
-      this.orderError.set('Please enter your delivery address.');
-      return;
+    if (this.orderType() === OrderType.Delivery) {
+      if (!address) {
+        this.orderError.set('Please enter your delivery address.');
+        return;
+      }
+      if (this.isBelowDeliveryMinimum()) {
+        const min = this.store()?.minimumDeliveryOrder ?? 0;
+        this.orderError.set(`Minimum order for delivery is $${min.toFixed(2)}.`);
+        return;
+      }
     }
 
     this.submitting.set(true);
@@ -543,6 +662,7 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
         customerPhone: phone,
         customerEmail: this.customerEmail.trim() || null,
         deliveryAddress: this.orderType() === OrderType.Delivery ? address : null,
+        deliveryLandmark: this.orderType() === OrderType.Delivery ? (this.deliveryLandmark.trim() || null) : null,
         notes: this.notes
       })
       .subscribe({

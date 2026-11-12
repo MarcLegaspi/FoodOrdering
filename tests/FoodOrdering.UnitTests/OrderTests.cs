@@ -278,4 +278,78 @@ public sealed class OrderTests
         Assert.Equal(placed.Order.OrderNumber, lookup.Order.OrderNumber);
         Assert.Equal("Alex Guest", lookup.Order.CustomerName);
     }
+
+    [Fact]
+    public async Task PlaceOrder_Enforces_MinimumDeliveryOrder_And_Applies_DeliveryFee_Or_FreeDeliveryThreshold()
+    {
+        var tenant = new TestTenantContext(storeId: 1);
+        await using var db = TestDbFactory.Create(tenant);
+        var (store, _) = await TestDbFactory.SeedTwoStoresAsync(db);
+
+        // Configure store delivery rules: Min $15, Delivery Fee $3, Free over $30
+        store.MinimumDeliveryOrder = 15.00m;
+        store.DeliveryFee = 3.00m;
+        store.FreeDeliveryThreshold = 30.00m;
+        store.EstimatedDeliveryTime = "25-35 mins";
+        await db.SaveChangesAsync();
+
+        var category = (await new CategoryService(db, tenant)
+            .CreateAsync(new CreateCategoryRequest("Pizzas", 1))).Category!;
+        var pizza = (await new MenuItemService(db, tenant)
+            .CreateAsync(new CreateMenuItemRequest(
+                category.PublicId, "Pepperoni Pizza", "Delicious", 12.00m))).Item!;
+
+        var customer = new TestCurrentUser(Guid.NewGuid(), isAuthenticated: true, "Customer");
+        var orderService = new OrderService(db, tenant, customer);
+
+        // 1. Order subtotal is $12 (< $15 min): must be rejected with informative error
+        var belowMin = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(pizza.PublicId, 1)],
+            OrderType.Delivery,
+            CustomerPhone: "09170001122",
+            DeliveryAddress: "123 Elm St",
+            DeliveryLandmark: "Gate 4, buzzer #12"));
+
+        Assert.Null(belowMin.Order);
+        Assert.Contains("Minimum order for delivery is", belowMin.Error);
+
+        // 2. Order subtotal is $24 (>= $15 min, < $30 free threshold): charges $3 delivery fee
+        var withDeliveryFee = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(pizza.PublicId, 2)],
+            OrderType.Delivery,
+            CustomerPhone: "09170001122",
+            DeliveryAddress: "123 Elm St",
+            DeliveryLandmark: "Gate 4, buzzer #12"));
+
+        Assert.NotNull(withDeliveryFee.Order);
+        Assert.Equal(24.00m, withDeliveryFee.Order.Subtotal);
+        Assert.Equal(3.00m, withDeliveryFee.Order.DeliveryFee);
+        Assert.Equal(27.00m, withDeliveryFee.Order.TotalAmount);
+        Assert.Equal("123 Elm St", withDeliveryFee.Order.DeliveryAddress);
+        Assert.Equal("Gate 4, buzzer #12", withDeliveryFee.Order.DeliveryLandmark);
+        Assert.Equal("25-35 mins", withDeliveryFee.Order.EstimatedDeliveryTime);
+
+        // 3. Order subtotal is $36 (>= $30 free threshold): delivery fee is waived ($0.00)
+        var freeDelivery = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(pizza.PublicId, 3)],
+            OrderType.Delivery,
+            CustomerPhone: "09170001122",
+            DeliveryAddress: "123 Elm St"));
+
+        Assert.NotNull(freeDelivery.Order);
+        Assert.Equal(36.00m, freeDelivery.Order.Subtotal);
+        Assert.Equal(0.00m, freeDelivery.Order.DeliveryFee);
+        Assert.Equal(36.00m, freeDelivery.Order.TotalAmount);
+
+        // 4. Pickup order never incurs delivery fee even if below delivery minimum
+        var pickup = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(pizza.PublicId, 1)],
+            OrderType.Pickup,
+            CustomerPhone: "09170001122"));
+
+        Assert.NotNull(pickup.Order);
+        Assert.Equal(12.00m, pickup.Order.Subtotal);
+        Assert.Equal(0.00m, pickup.Order.DeliveryFee);
+        Assert.Equal(12.00m, pickup.Order.TotalAmount);
+    }
 }

@@ -8,7 +8,11 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
 {
     public void Configure(EntityTypeBuilder<Store> builder)
     {
-        builder.ToTable("stores");
+        builder.ToTable("stores", t =>
+        {
+            t.HasCheckConstraint("CK_stores_DeliveryFee_NonNegative", "\"DeliveryFee\" >= 0");
+            t.HasCheckConstraint("CK_stores_MinimumDeliveryOrder_NonNegative", "\"MinimumDeliveryOrder\" >= 0");
+        });
 
         builder.HasKey(s => s.Id);
 
@@ -56,6 +60,24 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
         builder.Property(s => s.IsAcceptingOrders)
             .IsRequired()
             .HasDefaultValue(true);
+
+        builder.Property(s => s.DeliveryFee)
+            .IsRequired()
+            .HasPrecision(18, 2)
+            .HasDefaultValue(0m);
+
+        builder.Property(s => s.MinimumDeliveryOrder)
+            .IsRequired()
+            .HasPrecision(18, 2)
+            .HasDefaultValue(0m);
+
+        builder.Property(s => s.FreeDeliveryThreshold)
+            .HasPrecision(18, 2);
+
+        builder.Property(s => s.EstimatedDeliveryTime)
+            .IsRequired()
+            .HasMaxLength(100)
+            .HasDefaultValue(string.Empty);
 
         var seedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 

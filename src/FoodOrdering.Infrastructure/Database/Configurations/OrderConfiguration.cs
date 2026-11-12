@@ -10,7 +10,11 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
     public void Configure(EntityTypeBuilder<Order> builder)
     {
         builder.ToTable("orders", t =>
-            t.HasCheckConstraint("CK_orders_TotalAmount_NonNegative", "\"TotalAmount\" >= 0"));
+        {
+            t.HasCheckConstraint("CK_orders_TotalAmount_NonNegative", "\"TotalAmount\" >= 0");
+            t.HasCheckConstraint("CK_orders_Subtotal_NonNegative", "\"Subtotal\" >= 0");
+            t.HasCheckConstraint("CK_orders_DeliveryFee_NonNegative", "\"DeliveryFee\" >= 0");
+        });
 
         builder.HasKey(o => o.Id);
 
@@ -59,9 +63,27 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.DeliveryAddress)
             .HasMaxLength(500);
 
+        builder.Property(o => o.DeliveryLandmark)
+            .HasMaxLength(300);
+
+        builder.Property(o => o.Subtotal)
+            .IsRequired()
+            .HasPrecision(18, 2)
+            .HasDefaultValue(0m);
+
+        builder.Property(o => o.DeliveryFee)
+            .IsRequired()
+            .HasPrecision(18, 2)
+            .HasDefaultValue(0m);
+
         builder.Property(o => o.TotalAmount)
             .IsRequired()
             .HasPrecision(18, 2);
+
+        builder.Property(o => o.EstimatedDeliveryTime)
+            .IsRequired()
+            .HasMaxLength(100)
+            .HasDefaultValue(string.Empty);
 
         builder.Property(o => o.Notes)
             .IsRequired()

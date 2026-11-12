@@ -170,7 +170,14 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                   <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                     {{ statusText(order.status) }}
                   </span>
-                  <span class="font-bold text-slate-900">{{ order.totalAmount | currency }}</span>
+                  <div class="text-right">
+                    <span class="font-bold text-slate-900">{{ order.totalAmount | currency }}</span>
+                    @if (order.orderType === OrderType.Delivery) {
+                      <div class="text-[11px] text-slate-500">
+                        Food: {{ order.subtotal | currency }} · Delivery: {{ order.deliveryFee > 0 ? (order.deliveryFee | currency) : 'FREE' }}
+                      </div>
+                    }
+                  </div>
                 </div>
               </div>
 
@@ -189,6 +196,9 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 }
                 @if (order.deliveryAddress) {
                   <span>📍 Deliver to: {{ order.deliveryAddress }}</span>
+                }
+                @if (order.deliveryLandmark) {
+                  <span class="rounded bg-amber-50 px-1.5 py-0.5 text-amber-800">🏢 Landmark: {{ order.deliveryLandmark }}</span>
                 }
                 @if (order.notes) {
                   <span class="italic">Notes: {{ order.notes }}</span>
@@ -720,6 +730,63 @@ import { resolveImageUrl } from '../../core/utils/media-url';
               />
             </div>
 
+            <div class="border-t border-slate-200 pt-4">
+              <h3 class="text-sm font-bold text-slate-900">Delivery Rules & Fees</h3>
+              <p class="mt-0.5 text-xs text-slate-500">Configure fulfillment rules for delivery orders.</p>
+
+              <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label class="mb-1 block text-xs font-medium text-slate-700">Fixed Delivery Fee ($)</label>
+                  <input
+                    type="number"
+                    step="0.25"
+                    min="0"
+                    name="storeDeliveryFee"
+                    [(ngModel)]="storeDeliveryFee"
+                    placeholder="e.g. 3.00"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs font-medium text-slate-700">Minimum Order for Delivery ($)</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    name="storeMinimumDeliveryOrder"
+                    [(ngModel)]="storeMinimumDeliveryOrder"
+                    placeholder="e.g. 15.00 (0 for no min)"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label class="mb-1 block text-xs font-medium text-slate-700">Free Delivery on Orders Over ($)</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    name="storeFreeDeliveryThreshold"
+                    [(ngModel)]="storeFreeDeliveryThreshold"
+                    placeholder="e.g. 35.00 (leave blank if none)"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs font-medium text-slate-700">Est. Delivery / Prep Time</label>
+                  <input
+                    type="text"
+                    name="storeEstimatedDeliveryTime"
+                    [(ngModel)]="storeEstimatedDeliveryTime"
+                    placeholder="e.g. 30-45 mins"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
             <button
               type="submit"
               [disabled]="savingProfile()"
@@ -744,6 +811,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   private audioContext: AudioContext | null = null;
 
   readonly OrderStatus = OrderStatus;
+  readonly OrderType = OrderType;
   readonly CustomerType = CustomerType;
   readonly StoreRole = StoreRole;
   readonly imageUrl = resolveImageUrl;
@@ -815,6 +883,10 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   storePhone = '';
   storeAddress = '';
   storeOpeningHours = '';
+  storeDeliveryFee = 0;
+  storeMinimumDeliveryOrder = 0;
+  storeFreeDeliveryThreshold: number | null = null;
+  storeEstimatedDeliveryTime = '';
 
   ngOnInit(): void {
     this.liveSubscriptions.add(
@@ -1011,7 +1083,11 @@ export class StoreManageComponent implements OnInit, OnDestroy {
         email: this.storeEmail,
         phone: this.storePhone,
         address: this.storeAddress,
-        openingHours: this.storeOpeningHours
+        openingHours: this.storeOpeningHours,
+        deliveryFee: this.storeDeliveryFee,
+        minimumDeliveryOrder: this.storeMinimumDeliveryOrder,
+        freeDeliveryThreshold: this.storeFreeDeliveryThreshold,
+        estimatedDeliveryTime: this.storeEstimatedDeliveryTime
       })
       .subscribe({
         next: (updated) => {
@@ -1244,6 +1320,10 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     this.storePhone = store.phone;
     this.storeAddress = store.address;
     this.storeOpeningHours = store.openingHours;
+    this.storeDeliveryFee = store.deliveryFee ?? 0;
+    this.storeMinimumDeliveryOrder = store.minimumDeliveryOrder ?? 0;
+    this.storeFreeDeliveryThreshold = store.freeDeliveryThreshold ?? null;
+    this.storeEstimatedDeliveryTime = store.estimatedDeliveryTime ?? '';
   }
 
   private refreshOrders(): void {

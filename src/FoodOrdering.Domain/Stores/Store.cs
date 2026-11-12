@@ -22,6 +22,14 @@ public sealed class Store : AuditableEntity
 
     public string OpeningHours { get; set; } = string.Empty;
 
+    public decimal DeliveryFee { get; set; } = 0m;
+
+    public decimal MinimumDeliveryOrder { get; set; } = 0m;
+
+    public decimal? FreeDeliveryThreshold { get; set; }
+
+    public string EstimatedDeliveryTime { get; set; } = string.Empty;
+
     public bool IsActive { get; set; } = true;
 
     public bool IsAcceptingOrders { get; set; } = true;

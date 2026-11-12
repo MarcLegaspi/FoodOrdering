@@ -31,7 +31,15 @@ public sealed class Order : AuditableEntity, ITenantEntity
 
     public string? DeliveryAddress { get; set; }
 
+    public string? DeliveryLandmark { get; set; }
+
+    public decimal Subtotal { get; set; }
+
+    public decimal DeliveryFee { get; set; }
+
     public decimal TotalAmount { get; set; }
+
+    public string EstimatedDeliveryTime { get; set; } = string.Empty;
 
     public string Notes { get; set; } = string.Empty;
 

@@ -14,7 +14,8 @@ public sealed record PlaceOrderRequest(
     string? DeliveryAddress = null,
     string? Notes = null,
     string CustomerName = "",
-    string? CustomerEmail = null);
+    string? CustomerEmail = null,
+    string? DeliveryLandmark = null);
 
 public sealed record UpdateOrderStatusRequest(OrderStatus Status);
 
@@ -43,7 +44,11 @@ public sealed record OrderResponse(
     string CustomerPhone,
     string? CustomerEmail,
     string? DeliveryAddress,
+    string? DeliveryLandmark,
+    decimal Subtotal,
+    decimal DeliveryFee,
     decimal TotalAmount,
+    string EstimatedDeliveryTime,
     string Notes,
     DateTime CreatedAtUtc,
     IReadOnlyList<OrderItemResponse> Items);

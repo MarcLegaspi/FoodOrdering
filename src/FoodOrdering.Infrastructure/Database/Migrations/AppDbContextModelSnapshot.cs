@@ -415,6 +415,23 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<decimal>("DeliveryFee")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("DeliveryLandmark")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("EstimatedDeliveryTime")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasDefaultValue("");
+
                     b.Property<string>("Notes")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -441,6 +458,12 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                     b.Property<long>("StoreId")
                         .HasColumnType("bigint");
 
+                    b.Property<decimal>("Subtotal")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -462,6 +485,10 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
 
                     b.ToTable("orders", null, t =>
                         {
+                            t.HasCheckConstraint("CK_orders_DeliveryFee_NonNegative", "\"DeliveryFee\" >= 0");
+
+                            t.HasCheckConstraint("CK_orders_Subtotal_NonNegative", "\"Subtotal\" >= 0");
+
                             t.HasCheckConstraint("CK_orders_TotalAmount_NonNegative", "\"TotalAmount\" >= 0");
                         });
                 });
@@ -560,10 +587,27 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<decimal>("DeliveryFee")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<string>("EstimatedDeliveryTime")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasDefaultValue("");
+
+                    b.Property<decimal?>("FreeDeliveryThreshold")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<bool>("IsAcceptingOrders")
                         .ValueGeneratedOnAdd()
@@ -574,6 +618,12 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
+
+                    b.Property<decimal>("MinimumDeliveryOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -611,7 +661,12 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("stores", (string)null);
+                    b.ToTable("stores", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_stores_DeliveryFee_NonNegative", "\"DeliveryFee\" >= 0");
+
+                            t.HasCheckConstraint("CK_stores_MinimumDeliveryOrder_NonNegative", "\"MinimumDeliveryOrder\" >= 0");
+                        });
 
                     b.HasData(
                         new
@@ -619,9 +674,12 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                             Id = 1L,
                             Address = "101 Grill Ave, Downtown",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DeliveryFee = 0m,
                             Email = "hello@burgerbarn.local",
+                            EstimatedDeliveryTime = "",
                             IsAcceptingOrders = true,
                             IsActive = true,
+                            MinimumDeliveryOrder = 0m,
                             Name = "Burger Barn",
                             OpeningHours = "Daily 10:00 AM - 10:00 PM",
                             Phone = "+1-555-0101",
@@ -633,9 +691,12 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                             Id = 2L,
                             Address = "202 Brick Oven St, Midtown",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DeliveryFee = 0m,
                             Email = "hello@pizzapalace.local",
+                            EstimatedDeliveryTime = "",
                             IsAcceptingOrders = true,
                             IsActive = true,
+                            MinimumDeliveryOrder = 0m,
                             Name = "Pizza Palace",
                             OpeningHours = "Daily 11:00 AM - 11:00 PM",
                             Phone = "+1-555-0102",
@@ -647,9 +708,12 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                             Id = 3L,
                             Address = "303 Harbor Way, Waterfront",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DeliveryFee = 0m,
                             Email = "hello@sushispot.local",
+                            EstimatedDeliveryTime = "",
                             IsAcceptingOrders = true,
                             IsActive = true,
+                            MinimumDeliveryOrder = 0m,
                             Name = "Sushi Spot",
                             OpeningHours = "Tue-Sun 11:30 AM - 9:30 PM",
                             Phone = "+1-555-0103",

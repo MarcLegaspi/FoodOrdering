@@ -54,14 +54,22 @@ import { TenantService } from '../../core/tenant/tenant.service';
                   <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                     {{ statusText(order.status) }}
                   </span>
-                  <span class="font-bold text-slate-900">{{ order.totalAmount | currency }}</span>
+                  <div class="text-right">
+                    <span class="font-bold text-slate-900">{{ order.totalAmount | currency }}</span>
+                    @if (order.orderType === OrderType.Delivery && order.deliveryFee > 0) {
+                      <div class="text-[10px] text-slate-400">incl. {{ order.deliveryFee | currency }} delivery</div>
+                    }
+                  </div>
                 </div>
               </div>
 
-              <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
                 <span>Phone: {{ order.customerPhone }}</span>
                 @if (order.deliveryAddress) {
                   <span>Deliver to: {{ order.deliveryAddress }}</span>
+                }
+                @if (order.deliveryLandmark) {
+                  <span class="rounded bg-amber-50 px-1.5 py-0.5 text-amber-800">🏢 Landmark: {{ order.deliveryLandmark }}</span>
                 }
               </div>
 
@@ -113,6 +121,7 @@ export class MyOrdersComponent implements OnInit, OnDestroy {
   private readonly liveSubscriptions = new Subscription();
 
   readonly OrderStatus = OrderStatus;
+  readonly OrderType = OrderType;
   readonly orders = signal<Order[]>([]);
   readonly loading = signal(true);
 

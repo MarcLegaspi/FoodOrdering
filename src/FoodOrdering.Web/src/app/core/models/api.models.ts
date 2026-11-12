@@ -56,6 +56,10 @@ export interface Store {
   isActive: boolean;
   isAcceptingOrders: boolean;
   createdAtUtc: string;
+  deliveryFee: number;
+  minimumDeliveryOrder: number;
+  freeDeliveryThreshold?: number | null;
+  estimatedDeliveryTime: string;
 }
 
 export interface UpdateStoreProfileRequest {
@@ -64,6 +68,10 @@ export interface UpdateStoreProfileRequest {
   phone: string;
   address: string;
   openingHours: string;
+  deliveryFee?: number;
+  minimumDeliveryOrder?: number;
+  freeDeliveryThreshold?: number | null;
+  estimatedDeliveryTime?: string;
 }
 
 export interface CreateStoreRequest {
@@ -166,7 +174,11 @@ export interface Order {
   orderType: OrderType;
   customerPhone: string;
   deliveryAddress: string | null;
+  deliveryLandmark?: string | null;
+  subtotal: number;
+  deliveryFee: number;
   totalAmount: number;
+  estimatedDeliveryTime?: string;
   notes: string;
   createdAtUtc: string;
   items: OrderItem[];
@@ -179,6 +191,7 @@ export interface PlaceOrderRequest {
   customerPhone: string;
   customerEmail?: string | null;
   deliveryAddress?: string | null;
+  deliveryLandmark?: string | null;
   notes?: string | null;
 }
 

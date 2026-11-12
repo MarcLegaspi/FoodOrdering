@@ -122,7 +122,16 @@ public sealed class OrderService(
         var store = await db.Stores
             .AsNoTracking()
             .Where(s => s.Id == storeId)
-            .Select(s => new { s.Slug, s.Name, s.IsAcceptingOrders })
+            .Select(s => new
+            {
+                s.Slug,
+                s.Name,
+                s.IsAcceptingOrders,
+                s.DeliveryFee,
+                s.MinimumDeliveryOrder,
+                s.FreeDeliveryThreshold,
+                s.EstimatedDeliveryTime
+            })
             .FirstOrDefaultAsync(ct);
 
         if (store is null)
@@ -139,26 +148,13 @@ public sealed class OrderService(
             ? request.CustomerEmail.Trim()
             : (currentUser.IsAuthenticated ? currentUser.Email : null);
 
-        var order = new Order
-        {
-            StoreId = storeId,
-            CustomerType = customerType,
-            CustomerUserId = customerUserId,
-            CustomerName = customerName,
-            CustomerEmail = customerEmail,
-            OrderNumber = GenerateOrderNumber(),
-            Status = OrderStatus.Pending,
-            OrderType = request.OrderType,
-            CustomerPhone = customerPhone,
-            DeliveryAddress = deliveryAddress,
-            Notes = request.Notes?.Trim() ?? string.Empty
-        };
+        decimal subtotal = 0m;
+        var orderItems = new List<OrderItem>();
 
-        decimal totalAmount = 0m;
         foreach (var line in resolvedLines.Values)
         {
             var unitPrice = line.MenuItem.Price + line.Options.Sum(o => o.PriceDelta);
-            totalAmount += unitPrice * line.Quantity;
+            subtotal += unitPrice * line.Quantity;
 
             var orderItem = new OrderItem
             {
@@ -178,10 +174,51 @@ public sealed class OrderService(
                 });
             }
 
-            order.Items.Add(orderItem);
+            orderItems.Add(orderItem);
         }
 
-        order.TotalAmount = totalAmount;
+        decimal deliveryFee = 0m;
+        string? deliveryLandmark = null;
+        var estimatedDeliveryTime = store.EstimatedDeliveryTime;
+
+        if (request.OrderType == OrderType.Delivery)
+        {
+            if (store.MinimumDeliveryOrder > 0 && subtotal < store.MinimumDeliveryOrder)
+            {
+                var remaining = store.MinimumDeliveryOrder - subtotal;
+                return OrderResult.ValidationError(
+                    $"Minimum order for delivery is {store.MinimumDeliveryOrder:C}. Please add {remaining:C} more to qualify for delivery.");
+            }
+
+            deliveryFee = store.FreeDeliveryThreshold is { } threshold && subtotal >= threshold
+                ? 0m
+                : store.DeliveryFee;
+
+            deliveryLandmark = request.DeliveryLandmark?.Trim();
+        }
+
+        var totalAmount = subtotal + deliveryFee;
+
+        var order = new Order
+        {
+            StoreId = storeId,
+            CustomerType = customerType,
+            CustomerUserId = customerUserId,
+            CustomerName = customerName,
+            CustomerEmail = customerEmail,
+            OrderNumber = GenerateOrderNumber(),
+            Status = OrderStatus.Pending,
+            OrderType = request.OrderType,
+            CustomerPhone = customerPhone,
+            DeliveryAddress = deliveryAddress,
+            DeliveryLandmark = deliveryLandmark,
+            Subtotal = subtotal,
+            DeliveryFee = deliveryFee,
+            TotalAmount = totalAmount,
+            EstimatedDeliveryTime = estimatedDeliveryTime,
+            Notes = request.Notes?.Trim() ?? string.Empty,
+            Items = orderItems
+        };
 
         db.Orders.Add(order);
         await db.SaveChangesAsync(ct);
@@ -199,7 +236,11 @@ public sealed class OrderService(
             order.CustomerPhone,
             order.CustomerEmail,
             order.DeliveryAddress,
+            order.DeliveryLandmark,
+            order.Subtotal,
+            order.DeliveryFee,
             order.TotalAmount,
+            order.EstimatedDeliveryTime,
             order.Notes,
             order.CreatedAtUtc,
             order.Items.Select(i => new OrderItemResponse(
@@ -433,7 +474,11 @@ public sealed class OrderService(
             o.CustomerPhone,
             o.CustomerEmail,
             o.DeliveryAddress,
+            o.DeliveryLandmark,
+            o.Subtotal,
+            o.DeliveryFee,
             o.TotalAmount,
+            o.EstimatedDeliveryTime,
             o.Notes,
             o.CreatedAtUtc,
             o.Items.Select(i => new OrderItemResponse(
@@ -460,7 +505,11 @@ public sealed class OrderService(
             order.CustomerPhone,
             order.CustomerEmail,
             order.DeliveryAddress,
+            order.DeliveryLandmark,
+            order.Subtotal,
+            order.DeliveryFee,
             order.TotalAmount,
+            order.EstimatedDeliveryTime,
             order.Notes,
             order.CreatedAtUtc,
             order.Items.Select(i => new OrderItemResponse(

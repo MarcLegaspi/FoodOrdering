@@ -81,7 +81,11 @@ public sealed class StoreService(
             Email = request.Email.Trim(),
             Phone = request.Phone.Trim(),
             Address = request.Address?.Trim() ?? string.Empty,
-            OpeningHours = request.OpeningHours?.Trim() ?? string.Empty
+            OpeningHours = request.OpeningHours?.Trim() ?? string.Empty,
+            DeliveryFee = request.DeliveryFee < 0 ? 0m : request.DeliveryFee,
+            MinimumDeliveryOrder = request.MinimumDeliveryOrder < 0 ? 0m : request.MinimumDeliveryOrder,
+            FreeDeliveryThreshold = request.FreeDeliveryThreshold is { } ft && ft >= 0 ? ft : null,
+            EstimatedDeliveryTime = request.EstimatedDeliveryTime?.Trim() ?? string.Empty
         };
 
         db.Stores.Add(store);
@@ -148,6 +152,10 @@ public sealed class StoreService(
         store.Phone = request.Phone.Trim();
         store.Address = request.Address.Trim();
         store.OpeningHours = request.OpeningHours.Trim();
+        store.DeliveryFee = request.DeliveryFee < 0 ? 0m : request.DeliveryFee;
+        store.MinimumDeliveryOrder = request.MinimumDeliveryOrder < 0 ? 0m : request.MinimumDeliveryOrder;
+        store.FreeDeliveryThreshold = request.FreeDeliveryThreshold is { } threshold && threshold >= 0 ? threshold : null;
+        store.EstimatedDeliveryTime = request.EstimatedDeliveryTime?.Trim() ?? string.Empty;
 
         await db.SaveChangesAsync(ct);
 
@@ -168,7 +176,11 @@ public sealed class StoreService(
             store.OpeningHours,
             store.IsActive,
             store.IsAcceptingOrders,
-            store.CreatedAtUtc);
+            store.CreatedAtUtc,
+            store.DeliveryFee,
+            store.MinimumDeliveryOrder,
+            store.FreeDeliveryThreshold,
+            store.EstimatedDeliveryTime);
 }
 
 public sealed record StoreProfileResult(
