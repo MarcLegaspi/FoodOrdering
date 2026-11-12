@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"name": "FoodOrdering.UnitTests",
+			"path": "../../../../tests/FoodOrdering.UnitTests"
+		}
+	],
+	"settings": {}
+}

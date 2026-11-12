@@ -28,4 +28,6 @@ public sealed class MenuItem : AuditableEntity, ITenantEntity
     public bool IsAvailable { get; set; } = true;
 
     public int SortOrder { get; set; }
+
+    public ICollection<MenuItemOptionGroup> OptionGroups { get; set; } = new List<MenuItemOptionGroup>();
 }

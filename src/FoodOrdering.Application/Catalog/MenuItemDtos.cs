@@ -1,5 +1,17 @@
 namespace FoodOrdering.Application.Catalog;
 
+public sealed record SaveMenuItemOptionRequest(
+    string Name,
+    decimal PriceDelta = 0m,
+    int SortOrder = 0);
+
+public sealed record SaveMenuItemOptionGroupRequest(
+    string Name,
+    bool IsRequired = false,
+    bool AllowMultiple = false,
+    int SortOrder = 0,
+    IReadOnlyList<SaveMenuItemOptionRequest>? Options = null);
+
 public sealed record CreateMenuItemRequest(
     Guid CategoryPublicId,
     string Name,
@@ -7,7 +19,8 @@ public sealed record CreateMenuItemRequest(
     decimal Price,
     string? ImageUrl = null,
     bool IsAvailable = true,
-    int SortOrder = 0);
+    int SortOrder = 0,
+    IReadOnlyList<SaveMenuItemOptionGroupRequest>? OptionGroups = null);
 
 public sealed record UpdateMenuItemRequest(
     Guid CategoryPublicId,
@@ -16,7 +29,22 @@ public sealed record UpdateMenuItemRequest(
     decimal Price,
     string? ImageUrl = null,
     bool IsAvailable = true,
-    int SortOrder = 0);
+    int SortOrder = 0,
+    IReadOnlyList<SaveMenuItemOptionGroupRequest>? OptionGroups = null);
+
+public sealed record MenuItemOptionResponse(
+    Guid PublicId,
+    string Name,
+    decimal PriceDelta,
+    int SortOrder);
+
+public sealed record MenuItemOptionGroupResponse(
+    Guid PublicId,
+    string Name,
+    bool IsRequired,
+    bool AllowMultiple,
+    int SortOrder,
+    IReadOnlyList<MenuItemOptionResponse> Options);
 
 public sealed record MenuItemResponse(
     Guid PublicId,
@@ -28,7 +56,8 @@ public sealed record MenuItemResponse(
     string? ImageUrl,
     bool IsAvailable,
     int SortOrder,
-    DateTime CreatedAtUtc);
+    DateTime CreatedAtUtc,
+    IReadOnlyList<MenuItemOptionGroupResponse> OptionGroups);
 
 public sealed record MenuItemResult(
     MenuItemResponse? Item,

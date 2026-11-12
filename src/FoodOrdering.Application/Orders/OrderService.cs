@@ -51,16 +51,16 @@ public sealed class OrderService(
             return OrderResult.ValidationError("Delivery address is required for delivery orders.");
         }
 
-        // Merge duplicate menu item lines so each menu item appears once per order
-        var quantitiesByPublicId = request.Items
-            .GroupBy(i => i.MenuItemPublicId)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
-
-        var requestedIds = quantitiesByPublicId.Keys.ToList();
+        var requestedIds = request.Items
+            .Select(i => i.MenuItemPublicId)
+            .Distinct()
+            .ToList();
 
         // Tenant filter on MenuItems ensures items belong strictly to the active store
         var menuItems = await db.MenuItems
             .AsNoTracking()
+            .Include(m => m.OptionGroups)
+            .ThenInclude(g => g.Options)
             .Where(m => requestedIds.Contains(m.PublicId))
             .ToListAsync(ct);
 
@@ -73,6 +73,31 @@ public sealed class OrderService(
         if (unavailableItem is not null)
         {
             return OrderResult.ValidationError($"'{unavailableItem.Name}' is currently unavailable.");
+        }
+
+        var menuItemsByPublicId = menuItems.ToDictionary(m => m.PublicId);
+        var resolvedLines = new Dictionary<string, (Domain.Catalog.MenuItem MenuItem, List<(string GroupName, string OptionName, decimal PriceDelta)> Options, int Quantity)>();
+
+        foreach (var lineInput in request.Items)
+        {
+            var menuItem = menuItemsByPublicId[lineInput.MenuItemPublicId];
+            var (selectedOptions, lineKey, optionError) = ValidateAndResolveOptions(
+                menuItem,
+                lineInput.SelectedOptionPublicIds);
+
+            if (optionError is not null)
+            {
+                return OrderResult.ValidationError(optionError);
+            }
+
+            if (resolvedLines.TryGetValue(lineKey, out var existing))
+            {
+                resolvedLines[lineKey] = (existing.MenuItem, existing.Options, existing.Quantity + lineInput.Quantity);
+            }
+            else
+            {
+                resolvedLines[lineKey] = (menuItem, selectedOptions, lineInput.Quantity);
+            }
         }
 
         var store = await db.Stores
@@ -104,18 +129,30 @@ public sealed class OrderService(
         };
 
         decimal totalAmount = 0m;
-        foreach (var menuItem in menuItems)
+        foreach (var line in resolvedLines.Values)
         {
-            var quantity = quantitiesByPublicId[menuItem.PublicId];
-            totalAmount += menuItem.Price * quantity;
+            var unitPrice = line.MenuItem.Price + line.Options.Sum(o => o.PriceDelta);
+            totalAmount += unitPrice * line.Quantity;
 
-            order.Items.Add(new OrderItem
+            var orderItem = new OrderItem
             {
-                MenuItemId = menuItem.Id,
-                ItemNameSnapshot = menuItem.Name,
-                UnitPriceSnapshot = menuItem.Price,
-                Quantity = quantity
-            });
+                MenuItemId = line.MenuItem.Id,
+                ItemNameSnapshot = line.MenuItem.Name,
+                UnitPriceSnapshot = unitPrice,
+                Quantity = line.Quantity
+            };
+
+            foreach (var opt in line.Options)
+            {
+                orderItem.Options.Add(new OrderItemOption
+                {
+                    GroupNameSnapshot = opt.GroupName,
+                    OptionNameSnapshot = opt.OptionName,
+                    PriceDeltaSnapshot = opt.PriceDelta
+                });
+            }
+
+            order.Items.Add(orderItem);
         }
 
         order.TotalAmount = totalAmount;
@@ -141,7 +178,11 @@ public sealed class OrderService(
                 i.ItemNameSnapshot,
                 i.UnitPriceSnapshot,
                 i.Quantity,
-                i.UnitPriceSnapshot * i.Quantity)).ToList()),
+                i.UnitPriceSnapshot * i.Quantity,
+                i.Options.Select(o => new OrderItemOptionResponse(
+                    o.GroupNameSnapshot,
+                    o.OptionNameSnapshot,
+                    o.PriceDeltaSnapshot)).ToList())).ToList()),
             customerUserId);
     }
 
@@ -198,6 +239,8 @@ public sealed class OrderService(
             .Include(o => o.Store)
             .Include(o => o.Items)
             .ThenInclude(i => i.MenuItem)
+            .Include(o => o.Items)
+            .ThenInclude(i => i.Options)
             .FirstOrDefaultAsync(o => o.PublicId == publicId, ct);
 
         if (order is null)
@@ -229,6 +272,8 @@ public sealed class OrderService(
             .Include(o => o.Store)
             .Include(o => o.Items)
             .ThenInclude(i => i.MenuItem)
+            .Include(o => o.Items)
+            .ThenInclude(i => i.Options)
             .FirstOrDefaultAsync(o => o.PublicId == publicId, ct);
 
         if (order is null)
@@ -267,6 +312,62 @@ public sealed class OrderService(
         return next > current;
     }
 
+    private static (
+        List<(string GroupName, string OptionName, decimal PriceDelta)> Options,
+        string LineKey,
+        string? Error) ValidateAndResolveOptions(
+        Domain.Catalog.MenuItem menuItem,
+        IReadOnlyList<Guid>? rawSelectedOptionIds)
+    {
+        var distinctRequestedIds = (rawSelectedOptionIds ?? [])
+            .Distinct()
+            .ToList();
+
+        var optionLookup = menuItem.OptionGroups
+            .SelectMany(g => g.Options.Select(o => new { Group = g, Option = o }))
+            .ToDictionary(x => x.Option.PublicId);
+
+        var selectedPairs = new List<(Domain.Catalog.MenuItemOptionGroup Group, Domain.Catalog.MenuItemOption Option)>();
+        foreach (var optionPublicId in distinctRequestedIds)
+        {
+            if (!optionLookup.TryGetValue(optionPublicId, out var pair))
+            {
+                return ([], string.Empty, $"One or more selected options do not belong to '{menuItem.Name}'.");
+            }
+
+            selectedPairs.Add((pair.Group, pair.Option));
+        }
+
+        foreach (var group in menuItem.OptionGroups)
+        {
+            var countForGroup = selectedPairs.Count(p => p.Group.Id == group.Id);
+            if (group.IsRequired && countForGroup == 0)
+            {
+                return ([], string.Empty, $"'{menuItem.Name}' requires choosing an option from '{group.Name}'.");
+            }
+
+            if (!group.AllowMultiple && countForGroup > 1)
+            {
+                return ([], string.Empty, $"Only one option may be selected from '{group.Name}' on '{menuItem.Name}'.");
+            }
+        }
+
+        var orderedPairs = selectedPairs
+            .OrderBy(p => p.Group.SortOrder)
+            .ThenBy(p => p.Group.Name)
+            .ThenBy(p => p.Option.SortOrder)
+            .ThenBy(p => p.Option.Name)
+            .ThenBy(p => p.Option.PublicId)
+            .ToList();
+
+        var lineKey = $"{menuItem.PublicId}:{string.Join(",", orderedPairs.Select(p => p.Option.PublicId))}";
+        var resolved = orderedPairs
+            .Select(p => (p.Group.Name, p.Option.Name, p.Option.PriceDelta))
+            .ToList();
+
+        return (resolved, lineKey, null);
+    }
+
     private static string GenerateOrderNumber() =>
         $"ORD-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
 
@@ -288,7 +389,11 @@ public sealed class OrderService(
                 i.ItemNameSnapshot,
                 i.UnitPriceSnapshot,
                 i.Quantity,
-                i.UnitPriceSnapshot * i.Quantity)).ToList()));
+                i.UnitPriceSnapshot * i.Quantity,
+                i.Options.Select(opt => new OrderItemOptionResponse(
+                    opt.GroupNameSnapshot,
+                    opt.OptionNameSnapshot,
+                    opt.PriceDeltaSnapshot)).ToList())).ToList()));
 
     private static OrderResponse ToResponse(Order order) =>
         new(
@@ -308,5 +413,9 @@ public sealed class OrderService(
                 i.ItemNameSnapshot,
                 i.UnitPriceSnapshot,
                 i.Quantity,
-                i.UnitPriceSnapshot * i.Quantity)).ToList());
+                i.UnitPriceSnapshot * i.Quantity,
+                i.Options.Select(opt => new OrderItemOptionResponse(
+                    opt.GroupNameSnapshot,
+                    opt.OptionNameSnapshot,
+                    opt.PriceDeltaSnapshot)).ToList())).ToList());
 }

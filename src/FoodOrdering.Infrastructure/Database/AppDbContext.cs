@@ -25,9 +25,15 @@ public sealed class AppDbContext(
 
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
 
+    public DbSet<MenuItemOptionGroup> MenuItemOptionGroups => Set<MenuItemOptionGroup>();
+
+    public DbSet<MenuItemOption> MenuItemOptions => Set<MenuItemOption>();
+
     public DbSet<Order> Orders => Set<Order>();
 
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+
+    public DbSet<OrderItemOption> OrderItemOptions => Set<OrderItemOption>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -42,11 +48,20 @@ public sealed class AppDbContext(
         modelBuilder.Entity<MenuItem>()
             .HasQueryFilter(m => _tenantContext.StoreId != null && m.StoreId == _tenantContext.StoreId);
 
+        modelBuilder.Entity<MenuItemOptionGroup>()
+            .HasQueryFilter(g => _tenantContext.StoreId != null && g.MenuItem.StoreId == _tenantContext.StoreId);
+
+        modelBuilder.Entity<MenuItemOption>()
+            .HasQueryFilter(o => _tenantContext.StoreId != null && o.OptionGroup.MenuItem.StoreId == _tenantContext.StoreId);
+
         modelBuilder.Entity<Order>()
             .HasQueryFilter(o => _tenantContext.StoreId != null && o.StoreId == _tenantContext.StoreId);
 
         modelBuilder.Entity<OrderItem>()
             .HasQueryFilter(i => _tenantContext.StoreId != null && i.Order.StoreId == _tenantContext.StoreId);
+
+        modelBuilder.Entity<OrderItemOption>()
+            .HasQueryFilter(o => _tenantContext.StoreId != null && o.OrderItem.Order.StoreId == _tenantContext.StoreId);
 
         modelBuilder.Entity<StoreMember>()
             .HasQueryFilter(m => _tenantContext.StoreId != null && m.StoreId == _tenantContext.StoreId);

@@ -287,6 +287,93 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         });
                 });
 
+            modelBuilder.Entity("FoodOrdering.Domain.Catalog.MenuItemOption", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("MenuItemOptionGroupId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<decimal>("PriceDelta")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MenuItemOptionGroupId");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.ToTable("menu_item_options", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_menu_item_options_PriceDelta_NonNegative", "\"PriceDelta\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("FoodOrdering.Domain.Catalog.MenuItemOptionGroup", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("AllowMultiple")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsRequired")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<long>("MenuItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MenuItemId");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.ToTable("menu_item_option_groups", (string)null);
+                });
+
             modelBuilder.Entity("FoodOrdering.Domain.Orders.Order", b =>
                 {
                     b.Property<long>("Id")
@@ -398,6 +485,41 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                             t.HasCheckConstraint("CK_order_items_Quantity_Positive", "\"Quantity\" > 0");
 
                             t.HasCheckConstraint("CK_order_items_UnitPriceSnapshot_NonNegative", "\"UnitPriceSnapshot\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("FoodOrdering.Domain.Orders.OrderItemOption", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("GroupNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("OptionNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long>("OrderItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("PriceDeltaSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderItemId");
+
+                    b.ToTable("order_item_options", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_order_item_options_PriceDeltaSnapshot_NonNegative", "\"PriceDeltaSnapshot\" >= 0");
                         });
                 });
 
@@ -783,6 +905,28 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                     b.Navigation("Store");
                 });
 
+            modelBuilder.Entity("FoodOrdering.Domain.Catalog.MenuItemOption", b =>
+                {
+                    b.HasOne("FoodOrdering.Domain.Catalog.MenuItemOptionGroup", "OptionGroup")
+                        .WithMany("Options")
+                        .HasForeignKey("MenuItemOptionGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OptionGroup");
+                });
+
+            modelBuilder.Entity("FoodOrdering.Domain.Catalog.MenuItemOptionGroup", b =>
+                {
+                    b.HasOne("FoodOrdering.Domain.Catalog.MenuItem", "MenuItem")
+                        .WithMany("OptionGroups")
+                        .HasForeignKey("MenuItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MenuItem");
+                });
+
             modelBuilder.Entity("FoodOrdering.Domain.Orders.Order", b =>
                 {
                     b.HasOne("FoodOrdering.Infrastructure.Identity.AppUser", null)
@@ -817,6 +961,17 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                     b.Navigation("MenuItem");
 
                     b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("FoodOrdering.Domain.Orders.OrderItemOption", b =>
+                {
+                    b.HasOne("FoodOrdering.Domain.Orders.OrderItem", "OrderItem")
+                        .WithMany("Options")
+                        .HasForeignKey("OrderItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrderItem");
                 });
 
             modelBuilder.Entity("FoodOrdering.Domain.Stores.StoreMember", b =>
@@ -892,9 +1047,24 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                     b.Navigation("MenuItems");
                 });
 
+            modelBuilder.Entity("FoodOrdering.Domain.Catalog.MenuItem", b =>
+                {
+                    b.Navigation("OptionGroups");
+                });
+
+            modelBuilder.Entity("FoodOrdering.Domain.Catalog.MenuItemOptionGroup", b =>
+                {
+                    b.Navigation("Options");
+                });
+
             modelBuilder.Entity("FoodOrdering.Domain.Orders.Order", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("FoodOrdering.Domain.Orders.OrderItem", b =>
+                {
+                    b.Navigation("Options");
                 });
 
             modelBuilder.Entity("FoodOrdering.Domain.Stores.Store", b =>

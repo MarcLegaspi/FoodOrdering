@@ -78,6 +78,22 @@ export interface Category {
   createdAtUtc: string;
 }
 
+export interface MenuItemOption {
+  publicId: string;
+  name: string;
+  priceDelta: number;
+  sortOrder: number;
+}
+
+export interface MenuItemOptionGroup {
+  publicId: string;
+  name: string;
+  isRequired: boolean;
+  allowMultiple: boolean;
+  sortOrder: number;
+  options: MenuItemOption[];
+}
+
 export interface MenuItem {
   publicId: string;
   categoryPublicId: string;
@@ -89,6 +105,21 @@ export interface MenuItem {
   isAvailable: boolean;
   sortOrder: number;
   createdAtUtc: string;
+  optionGroups: MenuItemOptionGroup[];
+}
+
+export interface SaveMenuItemOptionRequest {
+  name: string;
+  priceDelta: number;
+  sortOrder: number;
+}
+
+export interface SaveMenuItemOptionGroupRequest {
+  name: string;
+  isRequired: boolean;
+  allowMultiple: boolean;
+  sortOrder: number;
+  options: SaveMenuItemOptionRequest[];
 }
 
 export interface SaveMenuItemRequest {
@@ -99,6 +130,13 @@ export interface SaveMenuItemRequest {
   imageUrl?: string | null;
   isAvailable: boolean;
   sortOrder: number;
+  optionGroups?: SaveMenuItemOptionGroupRequest[] | null;
+}
+
+export interface OrderItemOption {
+  groupName: string;
+  optionName: string;
+  priceDelta: number;
 }
 
 export interface OrderItem {
@@ -107,6 +145,7 @@ export interface OrderItem {
   unitPrice: number;
   quantity: number;
   lineTotal: number;
+  options: OrderItemOption[];
 }
 
 export interface Order {
@@ -125,7 +164,7 @@ export interface Order {
 }
 
 export interface PlaceOrderRequest {
-  items: { menuItemPublicId: string; quantity: number }[];
+  items: { menuItemPublicId: string; quantity: number; selectedOptionPublicIds?: string[] }[];
   orderType: OrderType;
   customerPhone: string;
   deliveryAddress?: string | null;

@@ -19,4 +19,6 @@ public sealed class OrderItem
     public decimal UnitPriceSnapshot { get; set; }
 
     public int Quantity { get; set; }
+
+    public ICollection<OrderItemOption> Options { get; set; } = new List<OrderItemOption>();
 }

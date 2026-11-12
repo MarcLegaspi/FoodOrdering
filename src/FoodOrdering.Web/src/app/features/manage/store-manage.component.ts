@@ -10,6 +10,7 @@ import {
   Order,
   OrderStatus,
   OrderType,
+  SaveMenuItemOptionGroupRequest,
   SaveMenuItemRequest,
   Store,
   StoreMember,
@@ -183,8 +184,17 @@ import { resolveImageUrl } from '../../core/utils/media-url';
               </div>
 
               <ul class="mt-3 space-y-1 text-sm text-slate-600">
-                @for (item of order.items; track item.menuItemPublicId) {
-                  <li>{{ item.quantity }}× {{ item.itemName }} ({{ item.lineTotal | currency }})</li>
+                @for (item of order.items; track $index) {
+                  <li>
+                    <div>{{ item.quantity }}× {{ item.itemName }} ({{ item.lineTotal | currency }})</div>
+                    @if (item.options.length > 0) {
+                      <p class="text-xs text-slate-400">
+                        @for (opt of item.options; track $index; let last = $last) {
+                          {{ opt.groupName }}: {{ opt.optionName }}@if (opt.priceDelta > 0) { (+{{ opt.priceDelta | currency }}) }@if (!last) {, }
+                        }
+                      </p>
+                    }
+                  </li>
                 }
               </ul>
 
@@ -402,6 +412,95 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 />
               </div>
 
+              <div class="space-y-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold text-slate-700">Options & Add-ons (Sizes, Toppings)</span>
+                  <button
+                    type="button"
+                    (click)="addOptionGroup()"
+                    class="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    + Add Group
+                  </button>
+                </div>
+
+                @for (group of itemOptionGroups; track $index; let gIndex = $index) {
+                  <div class="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        [name]="'groupName-' + gIndex"
+                        [(ngModel)]="group.name"
+                        placeholder="Group name (e.g. Size, Toppings)"
+                        required
+                        class="min-w-0 flex-1 rounded border border-slate-300 px-2.5 py-1 text-xs"
+                      />
+                      <label class="flex items-center gap-1 text-xs text-slate-600">
+                        <input
+                          type="checkbox"
+                          [name]="'groupReq-' + gIndex"
+                          [(ngModel)]="group.isRequired"
+                        />
+                        Required
+                      </label>
+                      <label class="flex items-center gap-1 text-xs text-slate-600">
+                        <input
+                          type="checkbox"
+                          [name]="'groupMulti-' + gIndex"
+                          [(ngModel)]="group.allowMultiple"
+                        />
+                        Multi
+                      </label>
+                      <button
+                        type="button"
+                        (click)="removeOptionGroup(gIndex)"
+                        class="text-xs text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <div class="space-y-1.5 pl-2">
+                      @for (opt of group.options; track $index; let oIndex = $index) {
+                        <div class="flex items-center gap-2">
+                          <input
+                            type="text"
+                            [name]="'optName-' + gIndex + '-' + oIndex"
+                            [(ngModel)]="opt.name"
+                            placeholder="Option (e.g. Large)"
+                            required
+                            class="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1 text-xs"
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            [name]="'optPrice-' + gIndex + '-' + oIndex"
+                            [(ngModel)]="opt.priceDelta"
+                            placeholder="+Price"
+                            class="w-20 rounded border border-slate-300 px-2 py-1 text-xs"
+                          />
+                          <button
+                            type="button"
+                            (click)="removeOption(gIndex, oIndex)"
+                            class="text-xs text-slate-400 hover:text-red-600"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      }
+                      <button
+                        type="button"
+                        (click)="addOption(gIndex)"
+                        class="text-xs font-medium text-slate-600 hover:text-slate-900"
+                      >
+                        + Add Option
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+
               <div class="flex gap-2">
                 <button
                   type="submit"
@@ -440,6 +539,9 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                   <div>
                     <span class="font-semibold text-slate-900">{{ item.name }}</span>
                     <span class="ml-2 text-xs text-slate-400">{{ item.categoryName }}</span>
+                    @if (item.optionGroups.length > 0) {
+                      <span class="ml-2 text-xs text-slate-500">· {{ item.optionGroups.length }} option group(s)</span>
+                    }
                   </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -688,6 +790,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   itemImageUrl = '';
   itemIsAvailable = true;
   itemSortOrder = 0;
+  itemOptionGroups: SaveMenuItemOptionGroupRequest[] = [];
 
   memberEmail = '';
   memberFullName = '';
@@ -938,6 +1041,38 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     });
   }
 
+  addOptionGroup(): void {
+    this.itemOptionGroups.push({
+      name: '',
+      isRequired: false,
+      allowMultiple: false,
+      sortOrder: this.itemOptionGroups.length + 1,
+      options: [{ name: '', priceDelta: 0, sortOrder: 1 }]
+    });
+  }
+
+  removeOptionGroup(groupIndex: number): void {
+    this.itemOptionGroups.splice(groupIndex, 1);
+  }
+
+  addOption(groupIndex: number): void {
+    const group = this.itemOptionGroups[groupIndex];
+    if (!group) {
+      return;
+    }
+
+    group.options.push({ name: '', priceDelta: 0, sortOrder: group.options.length + 1 });
+  }
+
+  removeOption(groupIndex: number, optionIndex: number): void {
+    const group = this.itemOptionGroups[groupIndex];
+    if (!group) {
+      return;
+    }
+
+    group.options.splice(optionIndex, 1);
+  }
+
   startEdit(item: MenuItem): void {
     this.clearAlerts();
     this.editingItemPublicId.set(item.publicId);
@@ -948,6 +1083,17 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     this.itemImageUrl = item.imageUrl ?? '';
     this.itemIsAvailable = item.isAvailable;
     this.itemSortOrder = item.sortOrder;
+    this.itemOptionGroups = item.optionGroups.map((g) => ({
+      name: g.name,
+      isRequired: g.isRequired,
+      allowMultiple: g.allowMultiple,
+      sortOrder: g.sortOrder,
+      options: g.options.map((o) => ({
+        name: o.name,
+        priceDelta: o.priceDelta,
+        sortOrder: o.sortOrder
+      }))
+    }));
   }
 
   cancelEdit(): void {
@@ -959,6 +1105,7 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     this.itemImageUrl = '';
     this.itemIsAvailable = true;
     this.itemSortOrder = 0;
+    this.itemOptionGroups = [];
   }
 
   saveMenuItem(): void {
@@ -971,7 +1118,18 @@ export class StoreManageComponent implements OnInit, OnDestroy {
       price: Number(this.itemPrice),
       imageUrl: this.itemImageUrl || null,
       isAvailable: editingId ? this.itemIsAvailable : true,
-      sortOrder: editingId ? this.itemSortOrder : 0
+      sortOrder: editingId ? this.itemSortOrder : 0,
+      optionGroups: this.itemOptionGroups.map((g, gIdx) => ({
+        name: g.name,
+        isRequired: g.isRequired,
+        allowMultiple: g.allowMultiple,
+        sortOrder: gIdx + 1,
+        options: g.options.map((o, oIdx) => ({
+          name: o.name,
+          priceDelta: Number(o.priceDelta) || 0,
+          sortOrder: oIdx + 1
+        }))
+      }))
     };
 
     const action$ = editingId
@@ -985,8 +1143,9 @@ export class StoreManageComponent implements OnInit, OnDestroy {
         this.refreshMenu();
       },
       error: (err) =>
-        this.error.set(
-          err?.error?.error ?? (editingId ? 'Could not update menu item.' : 'Could not create menu item.')
+        this.setError(
+          err,
+          editingId ? 'Could not update menu item.' : 'Could not create menu item.'
         )
     });
   }

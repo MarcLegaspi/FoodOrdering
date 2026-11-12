@@ -3,7 +3,7 @@ import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { CartService } from '../../core/cart/cart.service';
+import { CartSelectedOption, CartService } from '../../core/cart/cart.service';
 import { Category, MenuItem, OrderType, Store } from '../../core/models/api.models';
 import { FoodOrderingApiService } from '../../core/services/food-ordering-api.service';
 import { TenantService } from '../../core/tenant/tenant.service';
@@ -121,10 +121,10 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                       <button
                         type="button"
                         [disabled]="!activeStore.isAcceptingOrders || !item.isAvailable"
-                        (click)="cart.addItem(item)"
+                        (click)="onAddItemClicked(item)"
                         class="mt-4 w-full rounded-lg border border-slate-300 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {{ !activeStore.isAcceptingOrders ? 'Store Closed' : (!item.isAvailable ? 'Sold Out' : 'Add to cart') }}
+                        {{ !activeStore.isAcceptingOrders ? 'Store Closed' : (!item.isAvailable ? 'Sold Out' : (item.optionGroups.length > 0 ? 'Customize & Add' : 'Add to cart')) }}
                       </button>
                     </div>
                   </div>
@@ -146,17 +146,24 @@ import { resolveImageUrl } from '../../core/utils/media-url';
             <p class="mt-4 text-sm text-slate-500">Your cart is empty. Add items from the menu.</p>
           } @else {
             <div class="mt-4 divide-y divide-slate-100">
-              @for (item of cart.items(); track item.menuItemPublicId) {
-                <div class="flex items-center justify-between py-3 text-sm">
+              @for (item of cart.items(); track item.cartItemKey) {
+                <div class="flex items-start justify-between gap-2 py-3 text-sm">
                   <div>
                     <p class="font-medium text-slate-900">{{ item.name }}</p>
-                    <p class="text-xs text-slate-500">{{ item.unitPrice | currency }} each</p>
+                    @if (item.selectedOptions.length > 0) {
+                      <p class="text-xs text-slate-500">
+                        @for (opt of item.selectedOptions; track opt.publicId; let last = $last) {
+                          {{ opt.name }}@if (opt.priceDelta > 0) { (+{{ opt.priceDelta | currency }}) }@if (!last) {, }
+                        }
+                      </p>
+                    }
+                    <p class="text-xs text-slate-400">{{ item.unitPrice | currency }} each</p>
                   </div>
 
                   <div class="flex items-center gap-2">
                     <button
                       type="button"
-                      (click)="cart.updateQuantity(item.menuItemPublicId, item.quantity - 1)"
+                      (click)="cart.updateQuantity(item.cartItemKey, item.quantity - 1)"
                       class="h-7 w-7 rounded border border-slate-300 text-slate-700 hover:bg-slate-50"
                     >
                       -
@@ -164,7 +171,7 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                     <span class="w-5 text-center font-medium">{{ item.quantity }}</span>
                     <button
                       type="button"
-                      (click)="cart.updateQuantity(item.menuItemPublicId, item.quantity + 1)"
+                      (click)="cart.updateQuantity(item.cartItemKey, item.quantity + 1)"
                       class="h-7 w-7 rounded border border-slate-300 text-slate-700 hover:bg-slate-50"
                     >
                       +
@@ -242,6 +249,72 @@ import { resolveImageUrl } from '../../core/utils/media-url';
           }
         </aside>
       </div>
+
+      @if (customizingItem(); as customItem) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h2 class="text-lg font-bold text-slate-900">{{ customItem.name }}</h2>
+                <p class="text-sm text-slate-500">Base price: {{ customItem.price | currency }}</p>
+              </div>
+              <button
+                type="button"
+                (click)="closeCustomize()"
+                class="rounded-md px-2 py-1 text-sm text-slate-500 hover:bg-slate-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div class="mt-4 space-y-4">
+              @for (group of customItem.optionGroups; track group.publicId) {
+                <div class="space-y-2 border-t border-slate-100 pt-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-semibold text-slate-900">{{ group.name }}</span>
+                    <span class="text-xs font-medium text-slate-500">
+                      {{ group.isRequired ? 'Required' : 'Optional' }} · {{ group.allowMultiple ? 'Choose any' : 'Choose 1' }}
+                    </span>
+                  </div>
+
+                  <div class="space-y-1.5">
+                    @for (opt of group.options; track opt.publicId) {
+                      <label class="flex cursor-pointer items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50">
+                        <span class="flex items-center gap-2">
+                          <input
+                            [type]="group.allowMultiple ? 'checkbox' : 'radio'"
+                            [name]="'group-' + group.publicId"
+                            [checked]="isOptionSelected(group.publicId, opt.publicId)"
+                            (change)="onOptionToggle(group.publicId, opt.publicId, group.allowMultiple)"
+                          />
+                          <span class="text-slate-800">{{ opt.name }}</span>
+                        </span>
+                        @if (opt.priceDelta > 0) {
+                          <span class="text-xs font-medium text-slate-600">+{{ opt.priceDelta | currency }}</span>
+                        }
+                      </label>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div class="mt-6 flex items-center justify-between gap-3 border-t border-slate-200 pt-4">
+              <span class="text-base font-bold text-slate-900">
+                Total: {{ customizingUnitPrice() | currency }}
+              </span>
+              <button
+                type="button"
+                [disabled]="!canConfirmCustomization()"
+                (click)="confirmCustomization()"
+                class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Add to Cart
+              </button>
+            </div>
+          </div>
+        </div>
+      }
     }
   `
 })
@@ -265,9 +338,33 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
   readonly OrderType = OrderType;
   readonly imageUrl = resolveImageUrl;
   readonly orderType = signal<OrderType>(OrderType.Pickup);
+  readonly customizingItem = signal<MenuItem | null>(null);
+  readonly selectedOptionsByGroup = signal<Record<string, string[]>>({});
   customerPhone = '';
   deliveryAddress = '';
   notes = '';
+
+  readonly customizingUnitPrice = computed(() => {
+    const item = this.customizingItem();
+    if (!item) {
+      return 0;
+    }
+
+    const extra = this.resolveSelectedCartOptions(item).reduce((sum, o) => sum + o.priceDelta, 0);
+    return item.price + extra;
+  });
+
+  readonly canConfirmCustomization = computed(() => {
+    const item = this.customizingItem();
+    if (!item) {
+      return false;
+    }
+
+    const selections = this.selectedOptionsByGroup();
+    return item.optionGroups.every(
+      (g) => !g.isRequired || (selections[g.publicId]?.length ?? 0) > 0
+    );
+  });
 
   readonly groupedMenu = computed(() => {
     const categoryId = this.selectedCategoryId();
@@ -320,6 +417,56 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
     this.tenant.setStoreSlug(null);
   }
 
+  onAddItemClicked(item: MenuItem): void {
+    if (item.optionGroups.length === 0) {
+      this.cart.addItem(item, []);
+      return;
+    }
+
+    const initial: Record<string, string[]> = {};
+    for (const group of item.optionGroups) {
+      if (group.isRequired && !group.allowMultiple && group.options.length > 0) {
+        initial[group.publicId] = [group.options[0].publicId];
+      }
+    }
+
+    this.selectedOptionsByGroup.set(initial);
+    this.customizingItem.set(item);
+  }
+
+  closeCustomize(): void {
+    this.customizingItem.set(null);
+    this.selectedOptionsByGroup.set({});
+  }
+
+  isOptionSelected(groupPublicId: string, optionPublicId: string): boolean {
+    return (this.selectedOptionsByGroup()[groupPublicId] ?? []).includes(optionPublicId);
+  }
+
+  onOptionToggle(groupPublicId: string, optionPublicId: string, allowMultiple: boolean): void {
+    this.selectedOptionsByGroup.update((current) => {
+      if (!allowMultiple) {
+        return { ...current, [groupPublicId]: [optionPublicId] };
+      }
+
+      const existing = current[groupPublicId] ?? [];
+      const next = existing.includes(optionPublicId)
+        ? existing.filter((id) => id !== optionPublicId)
+        : [...existing, optionPublicId];
+      return { ...current, [groupPublicId]: next };
+    });
+  }
+
+  confirmCustomization(): void {
+    const item = this.customizingItem();
+    if (!item || !this.canConfirmCustomization()) {
+      return;
+    }
+
+    this.cart.addItem(item, this.resolveSelectedCartOptions(item));
+    this.closeCustomize();
+  }
+
   checkout(): void {
     this.orderError.set(null);
 
@@ -341,7 +488,8 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
       .placeOrder({
         items: this.cart.items().map((i) => ({
           menuItemPublicId: i.menuItemPublicId,
-          quantity: i.quantity
+          quantity: i.quantity,
+          selectedOptionPublicIds: i.selectedOptions.map((o) => o.publicId)
         })),
         orderType: this.orderType(),
         customerPhone: phone,
@@ -360,6 +508,27 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
           this.orderError.set(err?.error?.error ?? 'Could not place order.');
         }
       });
+  }
+
+  private resolveSelectedCartOptions(item: MenuItem): CartSelectedOption[] {
+    const selections = this.selectedOptionsByGroup();
+    const resolved: CartSelectedOption[] = [];
+
+    for (const group of item.optionGroups) {
+      const selectedIds = selections[group.publicId] ?? [];
+      for (const opt of group.options) {
+        if (selectedIds.includes(opt.publicId)) {
+          resolved.push({
+            publicId: opt.publicId,
+            groupName: group.name,
+            name: opt.name,
+            priceDelta: opt.priceDelta
+          });
+        }
+      }
+    }
+
+    return resolved;
   }
 
   private loadStoreData(slug: string): void {

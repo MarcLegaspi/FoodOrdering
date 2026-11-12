@@ -1,11 +1,21 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { MenuItem } from '../models/api.models';
 
+export interface CartSelectedOption {
+  publicId: string;
+  groupName: string;
+  name: string;
+  priceDelta: number;
+}
+
 export interface CartItem {
+  cartItemKey: string;
   menuItemPublicId: string;
   name: string;
+  basePrice: number;
   unitPrice: number;
   quantity: number;
+  selectedOptions: CartSelectedOption[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -31,44 +41,52 @@ export class CartService {
     this._items.set(this.readFromStorage(normalized));
   }
 
-  addItem(menuItem: MenuItem): void {
+  addItem(menuItem: MenuItem, selectedOptions: CartSelectedOption[] = []): void {
+    const sortedOptions = [...selectedOptions].sort((a, b) => a.publicId.localeCompare(b.publicId));
+    const optionKey = sortedOptions.map((o) => o.publicId).join(',');
+    const cartItemKey = optionKey ? `${menuItem.publicId}:${optionKey}` : menuItem.publicId;
+    const unitPrice = menuItem.price + sortedOptions.reduce((sum, opt) => sum + opt.priceDelta, 0);
+
     const current = this._items();
-    const existing = current.find((i) => i.menuItemPublicId === menuItem.publicId);
+    const existing = current.find((i) => i.cartItemKey === cartItemKey);
 
     const updated = existing
       ? current.map((i) =>
-          i.menuItemPublicId === menuItem.publicId
+          i.cartItemKey === cartItemKey
             ? { ...i, quantity: i.quantity + 1 }
             : i
         )
       : [
           ...current,
           {
+            cartItemKey,
             menuItemPublicId: menuItem.publicId,
             name: menuItem.name,
-            unitPrice: menuItem.price,
-            quantity: 1
+            basePrice: menuItem.price,
+            unitPrice,
+            quantity: 1,
+            selectedOptions: sortedOptions
           }
         ];
 
     this.commit(updated);
   }
 
-  updateQuantity(menuItemPublicId: string, quantity: number): void {
+  updateQuantity(cartItemKey: string, quantity: number): void {
     if (quantity <= 0) {
-      this.removeItem(menuItemPublicId);
+      this.removeItem(cartItemKey);
       return;
     }
 
     this.commit(
       this._items().map((i) =>
-        i.menuItemPublicId === menuItemPublicId ? { ...i, quantity } : i
+        i.cartItemKey === cartItemKey ? { ...i, quantity } : i
       )
     );
   }
 
-  removeItem(menuItemPublicId: string): void {
-    this.commit(this._items().filter((i) => i.menuItemPublicId !== menuItemPublicId));
+  removeItem(cartItemKey: string): void {
+    this.commit(this._items().filter((i) => i.cartItemKey !== cartItemKey));
   }
 
   clear(): void {
@@ -92,13 +110,26 @@ export class CartService {
   private readFromStorage(slug: string): CartItem[] {
     try {
       const raw = localStorage.getItem(this.storageKey(slug));
-      return raw ? (JSON.parse(raw) as CartItem[]) : [];
+      if (!raw) {
+        return [];
+      }
+
+      const parsed = JSON.parse(raw) as Partial<CartItem>[];
+      return parsed.map((item) => ({
+        cartItemKey: item.cartItemKey ?? item.menuItemPublicId ?? '',
+        menuItemPublicId: item.menuItemPublicId ?? '',
+        name: item.name ?? '',
+        basePrice: item.basePrice ?? item.unitPrice ?? 0,
+        unitPrice: item.unitPrice ?? 0,
+        quantity: item.quantity ?? 1,
+        selectedOptions: item.selectedOptions ?? []
+      }));
     } catch {
       return [];
     }
   }
 
   private storageKey(slug: string): string {
-    return `fo_cart:${slug}`;
+    return `fo_cart_${slug}`;
   }
 }

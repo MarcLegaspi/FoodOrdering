@@ -66,10 +66,19 @@ import { TenantService } from '../../core/tenant/tenant.service';
               </div>
 
               <ul class="mt-3 space-y-1 border-t border-slate-100 pt-3 text-sm text-slate-600">
-                @for (item of order.items; track item.menuItemPublicId) {
-                  <li class="flex justify-between">
-                    <span>{{ item.quantity }}× {{ item.itemName }}</span>
-                    <span>{{ item.lineTotal | currency }}</span>
+                @for (item of order.items; track $index) {
+                  <li>
+                    <div class="flex justify-between">
+                      <span>{{ item.quantity }}× {{ item.itemName }}</span>
+                      <span>{{ item.lineTotal | currency }}</span>
+                    </div>
+                    @if (item.options.length > 0) {
+                      <p class="text-xs text-slate-400">
+                        @for (opt of item.options; track $index; let last = $last) {
+                          {{ opt.groupName }}: {{ opt.optionName }}@if (opt.priceDelta > 0) { (+{{ opt.priceDelta | currency }}) }@if (!last) {, }
+                        }
+                      </p>
+                    }
                   </li>
                 }
               </ul>

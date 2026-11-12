@@ -4,7 +4,8 @@ namespace FoodOrdering.Application.Orders;
 
 public sealed record OrderItemInput(
     Guid MenuItemPublicId,
-    int Quantity);
+    int Quantity,
+    IReadOnlyList<Guid>? SelectedOptionPublicIds = null);
 
 public sealed record PlaceOrderRequest(
     IReadOnlyList<OrderItemInput> Items,
@@ -15,12 +16,18 @@ public sealed record PlaceOrderRequest(
 
 public sealed record UpdateOrderStatusRequest(OrderStatus Status);
 
+public sealed record OrderItemOptionResponse(
+    string GroupName,
+    string OptionName,
+    decimal PriceDelta);
+
 public sealed record OrderItemResponse(
     Guid MenuItemPublicId,
     string ItemName,
     decimal UnitPrice,
     int Quantity,
-    decimal LineTotal);
+    decimal LineTotal,
+    IReadOnlyList<OrderItemOptionResponse> Options);
 
 public sealed record OrderResponse(
     Guid PublicId,

@@ -15,9 +15,15 @@ public interface IAppDbContext
 
     DbSet<MenuItem> MenuItems { get; }
 
+    DbSet<MenuItemOptionGroup> MenuItemOptionGroups { get; }
+
+    DbSet<MenuItemOption> MenuItemOptions { get; }
+
     DbSet<Order> Orders { get; }
 
     DbSet<OrderItem> OrderItems { get; }
+
+    DbSet<OrderItemOption> OrderItemOptions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
