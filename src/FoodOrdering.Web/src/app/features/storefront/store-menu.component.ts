@@ -1,17 +1,17 @@
-import { CurrencyPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { CartSelectedOption, CartService } from '../../core/cart/cart.service';
-import { Category, MenuItem, OrderType, PromoDiscountType, Store, ValidatePromoResponse } from '../../core/models/api.models';
+import { Category, MenuItem, OrderReview, OrderType, PromoDiscountType, Store, ValidatePromoResponse } from '../../core/models/api.models';
 import { FoodOrderingApiService } from '../../core/services/food-ordering-api.service';
 import { TenantService } from '../../core/tenant/tenant.service';
 import { resolveImageUrl } from '../../core/utils/media-url';
 
 @Component({
   selector: 'app-store-menu',
-  imports: [CurrencyPipe, FormsModule, RouterLink],
+  imports: [CurrencyPipe, DatePipe, FormsModule, RouterLink],
   template: `
     @if (loading()) {
       <p class="text-sm text-slate-500">Loading store menu...</p>
@@ -60,6 +60,16 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 <span class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700 border border-emerald-200">
                   Free Delivery Over {{ activeStore.freeDeliveryThreshold | currency }}
                 </span>
+              }
+              @if (activeStore.averageRating) {
+                <button
+                  type="button"
+                  (click)="openReviewsModal()"
+                  class="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-1 font-bold text-amber-800 border border-amber-200 hover:bg-amber-100 transition"
+                >
+                  ★ {{ activeStore.averageRating.toFixed(1) }}
+                  <span class="text-xs font-normal text-amber-700 underline">({{ activeStore.reviewCount }} reviews)</span>
+                </button>
               }
             </div>
 
@@ -481,6 +491,55 @@ import { resolveImageUrl } from '../../core/utils/media-url';
           </div>
         </div>
       }
+
+      @if (showingReviewsModal()) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div class="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h2 class="text-lg font-bold text-slate-900">{{ activeStore.name }} Reviews</h2>
+                @if (activeStore.averageRating) {
+                  <p class="text-xs text-amber-700 font-semibold flex items-center gap-1 mt-0.5">
+                    ★ {{ activeStore.averageRating.toFixed(1) }} out of 5 stars ({{ activeStore.reviewCount }} customer reviews)
+                  </p>
+                }
+              </div>
+              <button
+                type="button"
+                (click)="closeReviewsModal()"
+                class="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            @if (loadingReviews()) {
+              <div class="py-8 text-center text-xs text-slate-400">Loading customer reviews...</div>
+            } @else if (storeReviews().length === 0) {
+              <div class="py-8 text-center text-xs text-slate-400">No reviews yet for this store.</div>
+            } @else {
+              <div class="divide-y divide-slate-100 space-y-3">
+                @for (rev of storeReviews(); track rev.publicId) {
+                  <div class="pt-3 space-y-1">
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="font-bold text-slate-900">{{ rev.customerName }}</span>
+                      <span class="text-[11px] text-slate-400">{{ rev.createdAtUtc | date: 'mediumDate' }}</span>
+                    </div>
+                    <div class="text-amber-400 text-sm">
+                      @for (s of [1,2,3,4,5]; track s) {
+                        <span [class.text-amber-400]="s <= rev.rating" [class.text-slate-200]="s > rev.rating">★</span>
+                      }
+                    </div>
+                    @if (rev.comment) {
+                      <p class="text-xs text-slate-600 italic">"{{ rev.comment }}"</p>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
     }
   `
 })
@@ -510,6 +569,9 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
   readonly appliedPromo = signal<ValidatePromoResponse | null>(null);
   readonly validatingPromo = signal(false);
   readonly promoError = signal<string | null>(null);
+  readonly showingReviewsModal = signal(false);
+  readonly storeReviews = signal<OrderReview[]>([]);
+  readonly loadingReviews = signal(false);
   promoInput = '';
   customerName = '';
   customerPhone = '';
@@ -728,6 +790,26 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
   removePromo(): void {
     this.appliedPromo.set(null);
     this.promoError.set(null);
+  }
+
+  openReviewsModal(): void {
+    const slug = this.store()?.slug;
+    if (!slug) {
+      return;
+    }
+    this.showingReviewsModal.set(true);
+    this.loadingReviews.set(true);
+    this.api.getStoreReviews(slug).subscribe({
+      next: (summary) => {
+        this.storeReviews.set(summary.recentReviews);
+        this.loadingReviews.set(false);
+      },
+      error: () => this.loadingReviews.set(false)
+    });
+  }
+
+  closeReviewsModal(): void {
+    this.showingReviewsModal.set(false);
   }
 
   checkout(): void {

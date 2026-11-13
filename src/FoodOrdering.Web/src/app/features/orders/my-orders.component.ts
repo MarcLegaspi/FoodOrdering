@@ -98,6 +98,30 @@ import { TenantService } from '../../core/tenant/tenant.service';
                 <p class="mt-2 text-xs text-slate-500">Notes: {{ order.notes }}</p>
               }
 
+              @if (order.status === OrderStatus.Completed) {
+                @if (order.review; as rev) {
+                  <div class="mt-3 flex items-center justify-between rounded-lg bg-amber-50/70 px-3 py-2 text-xs text-amber-900 border border-amber-200/60">
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-amber-500 font-bold">★ {{ rev.rating }}/5</span>
+                      @if (rev.comment) {
+                        <span class="text-slate-700 italic">"{{ rev.comment }}"</span>
+                      }
+                    </div>
+                    <span class="text-[10px] text-slate-400">{{ rev.createdAtUtc | date: 'mediumDate' }}</span>
+                  </div>
+                } @else {
+                  <div class="mt-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs border border-slate-200">
+                    <span class="text-slate-600">Order completed! How was your experience?</span>
+                    <a
+                      [routerLink]="['/', order.storeSlug, 'orders', order.publicId]"
+                      class="font-bold text-amber-700 hover:text-amber-800 underline flex items-center gap-1"
+                    >
+                      ★ Rate Order →
+                    </a>
+                  </div>
+                }
+              }
+
               @if (order.status === OrderStatus.Pending) {
                 <div class="mt-4 flex justify-end">
                   <button

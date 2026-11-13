@@ -41,6 +41,11 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 Live
               </span>
             }
+            @if (store()?.averageRating; as rating) {
+              <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">
+                ★ {{ rating.toFixed(1) }} ({{ store()?.reviewCount }} {{ store()?.reviewCount === 1 ? 'review' : 'reviews' }})
+              </span>
+            }
           </div>
           <p class="mt-1 text-sm text-slate-500">Store dashboard for orders, menu, and team members.</p>
         </div>
@@ -233,6 +238,20 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                   </li>
                 }
               </ul>
+
+              @if (order.review; as rev) {
+                <div class="mt-3 rounded-lg bg-amber-50/70 border border-amber-200/80 p-2.5 text-xs">
+                  <div class="flex items-center justify-between font-semibold text-amber-900">
+                    <span class="flex items-center gap-1">
+                      <span class="text-amber-500">★</span> {{ rev.rating }}/5 Review ({{ rev.customerName }})
+                    </span>
+                    <span class="text-slate-400 font-normal">{{ rev.createdAtUtc | date:'shortDate' }}</span>
+                  </div>
+                  @if (rev.comment) {
+                    <p class="mt-1 text-slate-700 italic">"{{ rev.comment }}"</p>
+                  }
+                </div>
+              }
 
               @if (order.status !== OrderStatus.Completed && order.status !== OrderStatus.Cancelled) {
                 <div class="mt-4 flex flex-wrap gap-2">

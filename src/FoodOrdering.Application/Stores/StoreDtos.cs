@@ -42,4 +42,6 @@ public sealed record StoreResponse(
     decimal DeliveryFee = 0m,
     decimal MinimumDeliveryOrder = 0m,
     decimal? FreeDeliveryThreshold = null,
-    string EstimatedDeliveryTime = "");
+    string EstimatedDeliveryTime = "",
+    double? AverageRating = null,
+    int ReviewCount = 0);

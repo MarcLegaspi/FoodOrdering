@@ -1,4 +1,5 @@
 using FoodOrdering.Application.Common.Interfaces;
+using FoodOrdering.Application.Reviews;
 using FoodOrdering.Domain.Orders;
 using FoodOrdering.Domain.Promos;
 using Microsoft.EntityFrameworkCore;
@@ -372,6 +373,7 @@ public sealed class OrderService(
 
         var order = await db.Orders
             .Include(o => o.Store)
+            .Include(o => o.Review)
             .Include(o => o.Items)
             .ThenInclude(i => i.MenuItem)
             .Include(o => o.Items)
@@ -415,6 +417,7 @@ public sealed class OrderService(
         var order = await db.Orders
             .IgnoreQueryFilters()
             .Include(o => o.Store)
+            .Include(o => o.Review)
             .Include(o => o.Items)
             .ThenInclude(i => i.MenuItem)
             .Include(o => o.Items)
@@ -531,6 +534,7 @@ public sealed class OrderService(
             .IgnoreQueryFilters()
             .AsNoTracking()
             .Include(o => o.Store)
+            .Include(o => o.Review)
             .Include(o => o.Items)
                 .ThenInclude(i => i.MenuItem)
             .Include(o => o.Items)
@@ -576,7 +580,15 @@ public sealed class OrderService(
                 i.Options.Select(opt => new OrderItemOptionResponse(
                     opt.GroupNameSnapshot,
                     opt.OptionNameSnapshot,
-                    opt.PriceDeltaSnapshot)).ToList())).ToList()));
+                    opt.PriceDeltaSnapshot)).ToList())).ToList(),
+            o.Review == null
+                ? null
+                : new OrderReviewResponse(
+                    o.Review.PublicId,
+                    o.Review.Rating,
+                    o.Review.Comment,
+                    o.Review.CustomerName,
+                    o.Review.CreatedAtUtc)));
 
     private static OrderResponse ToResponse(Order order) =>
         new(
@@ -609,5 +621,13 @@ public sealed class OrderService(
                 i.Options.Select(opt => new OrderItemOptionResponse(
                     opt.GroupNameSnapshot,
                     opt.OptionNameSnapshot,
-                    opt.PriceDeltaSnapshot)).ToList())).ToList());
+                    opt.PriceDeltaSnapshot)).ToList())).ToList(),
+            order.Review == null
+                ? null
+                : new OrderReviewResponse(
+                    order.Review.PublicId,
+                    order.Review.Rating,
+                    order.Review.Comment,
+                    order.Review.CustomerName,
+                    order.Review.CreatedAtUtc));
 }

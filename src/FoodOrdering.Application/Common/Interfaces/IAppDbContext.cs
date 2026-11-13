@@ -1,6 +1,7 @@
 using FoodOrdering.Domain.Catalog;
 using FoodOrdering.Domain.Orders;
 using FoodOrdering.Domain.Promos;
+using FoodOrdering.Domain.Reviews;
 using FoodOrdering.Domain.Stores;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,6 +28,8 @@ public interface IAppDbContext
     DbSet<OrderItem> OrderItems { get; }
 
     DbSet<OrderItemOption> OrderItemOptions { get; }
+
+    DbSet<OrderReview> OrderReviews { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

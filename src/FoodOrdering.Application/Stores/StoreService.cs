@@ -180,7 +180,9 @@ public sealed class StoreService(
             store.DeliveryFee,
             store.MinimumDeliveryOrder,
             store.FreeDeliveryThreshold,
-            store.EstimatedDeliveryTime);
+            store.EstimatedDeliveryTime,
+            store.AverageRating,
+            store.ReviewCount);
 }
 
 public sealed record StoreProfileResult(

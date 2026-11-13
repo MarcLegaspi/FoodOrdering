@@ -3,6 +3,7 @@ using FoodOrdering.Domain.Catalog;
 using FoodOrdering.Domain.Common;
 using FoodOrdering.Domain.Orders;
 using FoodOrdering.Domain.Promos;
+using FoodOrdering.Domain.Reviews;
 using FoodOrdering.Domain.Stores;
 using FoodOrdering.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -38,6 +39,8 @@ public sealed class AppDbContext(
 
     public DbSet<OrderItemOption> OrderItemOptions => Set<OrderItemOption>();
 
+    public DbSet<OrderReview> OrderReviews => Set<OrderReview>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -71,6 +74,9 @@ public sealed class AppDbContext(
 
         modelBuilder.Entity<StoreMember>()
             .HasQueryFilter(m => _tenantContext.StoreId != null && m.StoreId == _tenantContext.StoreId);
+
+        modelBuilder.Entity<OrderReview>()
+            .HasQueryFilter(r => _tenantContext.StoreId != null && r.StoreId == _tenantContext.StoreId);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

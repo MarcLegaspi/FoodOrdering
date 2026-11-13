@@ -1,3 +1,4 @@
+using FoodOrdering.Application.Reviews;
 using FoodOrdering.Domain.Orders;
 
 namespace FoodOrdering.Application.Orders;
@@ -54,7 +55,8 @@ public sealed record OrderResponse(
     string EstimatedDeliveryTime,
     string Notes,
     DateTime CreatedAtUtc,
-    IReadOnlyList<OrderItemResponse> Items);
+    IReadOnlyList<OrderItemResponse> Items,
+    OrderReviewResponse? Review = null);
 
 public sealed record OrderResult(
     OrderResponse? Order,

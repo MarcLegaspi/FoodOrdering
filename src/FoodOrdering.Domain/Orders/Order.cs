@@ -1,4 +1,5 @@
 using FoodOrdering.Domain.Common;
+using FoodOrdering.Domain.Reviews;
 using FoodOrdering.Domain.Stores;
 
 namespace FoodOrdering.Domain.Orders;
@@ -48,4 +49,6 @@ public sealed class Order : AuditableEntity, ITenantEntity
     public string Notes { get; set; } = string.Empty;
 
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
+
+    public OrderReview? Review { get; set; }
 }

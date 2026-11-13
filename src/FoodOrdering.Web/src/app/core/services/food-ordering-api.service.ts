@@ -5,9 +5,11 @@ import { environment } from '../../../environments/environment';
 import {
   AddStoreMemberRequest,
   Category,
+  CreateReviewRequest,
   CreateStoreRequest,
   MenuItem,
   Order,
+  OrderReview,
   OrderStatus,
   PlaceOrderRequest,
   PromoCode,
@@ -16,6 +18,7 @@ import {
   SaveMenuItemRequest,
   Store,
   StoreMember,
+  StoreReviewSummary,
   UpdateStoreProfileRequest
 } from '../models/api.models';
 
@@ -141,6 +144,15 @@ export class FoodOrderingApiService {
 
   deletePromo(publicId: string): Observable<void> {
     return this.http.delete<void>(`${this.api}/promos/${publicId}`);
+  }
+
+  // Reviews
+  createOrderReview(orderPublicId: string, payload: CreateReviewRequest): Observable<OrderReview> {
+    return this.http.post<OrderReview>(`${this.api}/orders/${orderPublicId}/review`, payload);
+  }
+
+  getStoreReviews(slug: string): Observable<StoreReviewSummary> {
+    return this.http.get<StoreReviewSummary>(`${this.api}/stores/${encodeURIComponent(slug)}/reviews`);
   }
 
   // Store Members

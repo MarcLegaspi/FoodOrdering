@@ -65,6 +65,8 @@ export interface Store {
   minimumDeliveryOrder: number;
   freeDeliveryThreshold?: number | null;
   estimatedDeliveryTime: string;
+  averageRating?: number | null;
+  reviewCount: number;
 }
 
 export interface UpdateStoreProfileRequest {
@@ -189,6 +191,7 @@ export interface Order {
   notes: string;
   createdAtUtc: string;
   items: OrderItem[];
+  review?: OrderReview | null;
 }
 
 export interface PlaceOrderRequest {
@@ -241,6 +244,25 @@ export interface StoreMember {
   email: string;
   role: StoreRole;
   createdAtUtc: string;
+}
+
+export interface OrderReview {
+  publicId: string;
+  rating: number;
+  comment?: string | null;
+  customerName: string;
+  createdAtUtc: string;
+}
+
+export interface CreateReviewRequest {
+  rating: number;
+  comment?: string | null;
+}
+
+export interface StoreReviewSummary {
+  averageRating?: number | null;
+  reviewCount: number;
+  recentReviews: OrderReview[];
 }
 
 export interface AddStoreMemberRequest {

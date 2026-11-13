@@ -1,6 +1,7 @@
 using FoodOrdering.Domain.Catalog;
 using FoodOrdering.Domain.Common;
 using FoodOrdering.Domain.Orders;
+using FoodOrdering.Domain.Reviews;
 
 namespace FoodOrdering.Domain.Stores;
 
@@ -30,6 +31,10 @@ public sealed class Store : AuditableEntity
 
     public string EstimatedDeliveryTime { get; set; } = string.Empty;
 
+    public double? AverageRating { get; set; }
+
+    public int ReviewCount { get; set; } = 0;
+
     public bool IsActive { get; set; } = true;
 
     public bool IsAcceptingOrders { get; set; } = true;
@@ -41,4 +46,6 @@ public sealed class Store : AuditableEntity
     public ICollection<Order> Orders { get; set; } = new List<Order>();
 
     public ICollection<StoreMember> Members { get; set; } = new List<StoreMember>();
+
+    public ICollection<OrderReview> Reviews { get; set; } = new List<OrderReview>();
 }

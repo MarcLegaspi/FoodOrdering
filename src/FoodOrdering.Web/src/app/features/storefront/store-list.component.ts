@@ -39,7 +39,14 @@ import { TenantService } from '../../core/tenant/tenant.service';
                   </span>
                 }
               </div>
-              <p class="mt-1 text-xs text-slate-400">/{{ store.slug }}</p>
+              <div class="mt-1 flex items-center justify-between text-xs">
+                <span class="text-slate-400">/{{ store.slug }}</span>
+                @if (store.averageRating) {
+                  <span class="inline-flex items-center gap-1 font-semibold text-amber-700">
+                    ★ {{ store.averageRating.toFixed(1) }} <span class="text-slate-400 font-normal">({{ store.reviewCount }})</span>
+                  </span>
+                }
+              </div>
               @if (store.address) {
                 <p class="mt-3 text-sm text-slate-600">{{ store.address }}</p>
               }
