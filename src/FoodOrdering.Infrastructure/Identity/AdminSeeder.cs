@@ -40,8 +40,11 @@ public static class AdminSeeder
         var fullName = configuration["SeedAdmin:FullName"]?.Trim();
         var password = configuration["SeedAdmin:Password"];
 
+        logger.LogInformation("AdminSeeder: starting. Configured Email='{Email}'", email ?? "(null)");
+
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
         {
+            logger.LogWarning("AdminSeeder: SeedAdmin:Email or Password is empty. Skipping admin seed.");
             return;
         }
 
