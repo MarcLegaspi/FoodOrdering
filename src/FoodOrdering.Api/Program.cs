@@ -7,6 +7,7 @@ using FoodOrdering.Application.Common.Interfaces;
 using FoodOrdering.Infrastructure;
 using FoodOrdering.Infrastructure.Identity;
 using FoodOrdering.Infrastructure.Storage;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.FileProviders;
 using Scalar.AspNetCore;
 
@@ -24,19 +25,28 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
     {
-        if (allowedOrigins.Length > 0)
+        policy.SetIsOriginAllowed(origin =>
         {
-            policy.WithOrigins(allowedOrigins)
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
-        }
+            if (string.IsNullOrWhiteSpace(origin)) return false;
+            if (allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase)) return true;
+            if (origin.EndsWith(".pages.dev", StringComparison.OrdinalIgnoreCase)) return true;
+            if (origin.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        })
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials();
     });
 });
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
+if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
