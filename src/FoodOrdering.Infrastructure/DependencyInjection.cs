@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace FoodOrdering.Infrastructure;
@@ -87,7 +88,22 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, IdentityAuthService>();
 
         services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
-        services.AddScoped<IImageStorageService, LocalFileImageStorageService>();
+        services.AddScoped<LocalFileImageStorageService>();
+        services.AddHttpClient<SupabaseImageStorageService>();
+
+        services.AddScoped<IImageStorageService>(sp =>
+        {
+            var storageOpts = sp.GetRequiredService<IOptions<StorageOptions>>().Value;
+            var isSupabase = string.Equals(storageOpts.Provider, "Supabase", StringComparison.OrdinalIgnoreCase)
+                || (!string.IsNullOrWhiteSpace(storageOpts.SupabaseUrl) && !string.IsNullOrWhiteSpace(storageOpts.SupabaseKey));
+
+            if (isSupabase)
+            {
+                return sp.GetRequiredService<SupabaseImageStorageService>();
+            }
+
+            return sp.GetRequiredService<LocalFileImageStorageService>();
+        });
 
         return services;
     }
