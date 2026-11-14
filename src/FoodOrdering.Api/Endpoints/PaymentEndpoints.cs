@@ -75,6 +75,7 @@ public static class PaymentEndpoints
                     || string.Equals(status, "SETTLED", StringComparison.OrdinalIgnoreCase))
                 {
                     var order = await db.Orders
+                        .IgnoreQueryFilters()
                         .Include(o => o.Store)
                         .Include(o => o.Items)
                             .ThenInclude(i => i.MenuItem)
@@ -145,6 +146,17 @@ public static class PaymentEndpoints
                         await hubContext.Clients
                             .Group(OrderHub.OrderGroup(order.PublicId))
                             .SendAsync("OrderUpdated", response, ct);
+
+                        if (order.CustomerUserId is Guid customerUserId)
+                        {
+                            await hubContext.Clients
+                                .Group(OrderHub.UserGroup(customerUserId))
+                                .SendAsync("OrderUpdated", response, ct);
+                        }
+                    }
+                    else
+                    {
+                        logger.LogWarning("Xendit webhook order not found: ExternalId={ExternalId}, InvoiceId={InvoiceId}", externalId, invoiceId);
                     }
                 }
 
