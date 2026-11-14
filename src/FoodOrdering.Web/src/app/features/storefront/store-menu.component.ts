@@ -312,14 +312,35 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 <label class="block font-semibold text-slate-700">Payment Option</label>
 
                 @if (orderType() === OrderType.Delivery) {
-                  <div class="space-y-2">
-                    <div class="flex items-center gap-2">
+                  <div class="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      (click)="selectedPaymentMethod.set(PaymentMethod.PayOnDelivery)"
+                      class="flex flex-col items-start rounded-lg border p-2 text-left transition"
+                      [class]="selectedPaymentMethod() === PaymentMethod.PayOnDelivery
+                        ? 'border-slate-900 bg-slate-900 text-white'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
+                    >
                       <span class="text-base">🛵</span>
-                      <div>
-                        <div class="font-bold text-slate-900">Pay on Delivery</div>
-                        <div class="text-[11px] text-slate-500 font-normal">Pay cash or scan rider's GCash QR upon delivery</div>
-                      </div>
-                    </div>
+                      <span class="font-bold text-xs mt-0.5">Pay on Delivery</span>
+                      <span class="text-[10px] mt-0.5" [class]="selectedPaymentMethod() === PaymentMethod.PayOnDelivery ? 'text-slate-300' : 'text-slate-500'">Cash or Rider's QR</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      (click)="selectedPaymentMethod.set(PaymentMethod.GCashOnline)"
+                      class="flex flex-col items-start rounded-lg border p-2 text-left transition"
+                      [class]="selectedPaymentMethod() === PaymentMethod.GCashOnline
+                        ? 'border-blue-600 bg-blue-50/70 text-blue-900'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
+                    >
+                      <span class="text-base">📱</span>
+                      <span class="font-bold text-xs mt-0.5">GCash Online</span>
+                      <span class="text-[10px] text-blue-700 mt-0.5">Pre-paid upfront</span>
+                    </button>
+                  </div>
+
+                  @if (selectedPaymentMethod() === PaymentMethod.PayOnDelivery) {
                     <div class="pt-2 border-t border-slate-200">
                       <label class="block text-[11px] text-slate-500 mb-1">Paying with cash? (Optional)</label>
                       <input
@@ -334,7 +355,11 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                         </p>
                       }
                     </div>
-                  </div>
+                  } @else {
+                    <div class="rounded-md bg-blue-50 p-2 text-[11px] text-blue-800 border border-blue-200">
+                      ⚡ <strong>Pre-paid Delivery:</strong> Pre-paid via GCash. No payment needed at doorstep—just give your 4-digit PIN to the rider!
+                    </div>
+                  }
                 } @else {
                   <div class="grid grid-cols-2 gap-2">
                     <button
@@ -935,8 +960,8 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
         deliveryLandmark: this.orderType() === OrderType.Delivery ? (this.deliveryLandmark.trim() || null) : null,
         promoCode: this.appliedPromo()?.code ?? null,
         notes: this.notes,
-        paymentMethod: this.orderType() === OrderType.Delivery ? PaymentMethod.PayOnDelivery : this.selectedPaymentMethod(),
-        cashChangeFor: this.orderType() === OrderType.Delivery && this.cashChangeFor ? Number(this.cashChangeFor) : null
+        paymentMethod: this.selectedPaymentMethod(),
+        cashChangeFor: this.orderType() === OrderType.Delivery && this.selectedPaymentMethod() === PaymentMethod.PayOnDelivery && this.cashChangeFor ? Number(this.cashChangeFor) : null
       })
       .subscribe({
         next: (createdOrder) => {
