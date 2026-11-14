@@ -89,6 +89,7 @@ public sealed record OrderResponse(
     string? PaymentReference = null,
     string? DeliveryPin = null,
     string? ProofOfDeliveryImageUrl = null,
+    string? CheckoutUrl = null,
     OrderReviewResponse? Review = null);
 
 public sealed record OrderResult(

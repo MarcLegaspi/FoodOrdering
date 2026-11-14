@@ -480,6 +480,10 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                     b.Property<DateTime?>("PaidAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("PaymentCheckoutUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<int?>("PaymentCollectedVia")
                         .HasColumnType("integer");
 

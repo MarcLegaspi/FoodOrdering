@@ -226,6 +226,7 @@ export interface Order {
   paymentReference?: string | null;
   deliveryPin?: string | null;
   proofOfDeliveryImageUrl?: string | null;
+  checkoutUrl?: string | null;
   createdAtUtc: string;
   items: OrderItem[];
   review?: OrderReview | null;

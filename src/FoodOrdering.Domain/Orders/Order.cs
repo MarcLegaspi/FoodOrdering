@@ -99,6 +99,11 @@ public sealed class Order : AuditableEntity, ITenantEntity
     public string? PaymentReference { get; set; }
 
     /// <summary>
+    /// Hosted checkout redirect URL from payment gateway (e.g. Xendit Invoice URL for GCash).
+    /// </summary>
+    public string? PaymentCheckoutUrl { get; set; }
+
+    /// <summary>
     /// 4-digit security PIN generated for delivery orders. Customer shows this to rider at doorstep as proof-of-delivery.
     /// </summary>
     public string? DeliveryPin { get; set; }

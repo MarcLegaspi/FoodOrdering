@@ -9,7 +9,8 @@ namespace FoodOrdering.Application.Orders;
 public sealed class OrderService(
     IAppDbContext db,
     ITenantContext tenantContext,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    IPaymentGatewayService? paymentGateway = null)
 {
     public async Task<OrderResult> PlaceOrderAsync(PlaceOrderRequest request, CancellationToken ct = default)
     {
@@ -266,25 +267,59 @@ public sealed class OrderService(
         var paymentMethod = request.PaymentMethod;
         var paymentStatus = PaymentStatus.Pending;
         string? paymentReference = null;
+        string? checkoutUrl = null;
         DateTime? paidAtUtc = null;
         var deliveryPin = request.OrderType == OrderType.Delivery ? Random.Shared.Next(1000, 10000).ToString() : null;
+        var orderNumber = GenerateOrderNumber();
+        var orderPublicId = Guid.NewGuid();
 
-        // GCash Online express orders are pre-paid upfront to ensure priority queueing in the kitchen.
+        // GCash Online: If a payment gateway (e.g. Xendit) is configured, create a checkout invoice.
+        // If not configured, fall back to simulated instant payment for local/demo testing.
         if (paymentMethod == PaymentMethod.GCashOnline)
         {
-            paymentStatus = PaymentStatus.Paid;
-            paidAtUtc = DateTime.UtcNow;
-            paymentReference = $"GCASH-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+            if (paymentGateway != null && paymentGateway.IsConfigured)
+            {
+                var invoice = await paymentGateway.CreateGcashInvoiceAsync(
+                    orderNumber,
+                    totalAmount,
+                    store.Slug,
+                    store.Name,
+                    orderPublicId,
+                    customerName,
+                    customerPhone,
+                    customerEmail,
+                    ct);
+
+                if (invoice != null)
+                {
+                    checkoutUrl = invoice.CheckoutUrl;
+                    paymentReference = invoice.InvoiceId;
+                    paymentStatus = PaymentStatus.Pending;
+                }
+                else
+                {
+                    paymentStatus = PaymentStatus.Paid;
+                    paidAtUtc = DateTime.UtcNow;
+                    paymentReference = $"GCASH-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+                }
+            }
+            else
+            {
+                paymentStatus = PaymentStatus.Paid;
+                paidAtUtc = DateTime.UtcNow;
+                paymentReference = $"GCASH-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+            }
         }
 
         var order = new Order
         {
+            PublicId = orderPublicId,
             StoreId = storeId,
             CustomerType = customerType,
             CustomerUserId = customerUserId,
             CustomerName = customerName,
             CustomerEmail = customerEmail,
-            OrderNumber = GenerateOrderNumber(),
+            OrderNumber = orderNumber,
             Status = OrderStatus.Pending,
             OrderType = request.OrderType,
             CustomerPhone = customerPhone,
@@ -302,6 +337,7 @@ public sealed class OrderService(
             CashChangeFor = request.CashChangeFor,
             PaidAtUtc = paidAtUtc,
             PaymentReference = paymentReference,
+            PaymentCheckoutUrl = checkoutUrl,
             DeliveryPin = deliveryPin,
             Items = orderItems
         };
@@ -725,6 +761,7 @@ public sealed class OrderService(
             o.PaymentReference,
             o.DeliveryPin,
             o.ProofOfDeliveryImageUrl,
+            o.PaymentCheckoutUrl,
             o.Review == null
                 ? null
                 : new OrderReviewResponse(
@@ -778,6 +815,7 @@ public sealed class OrderService(
             order.PaymentReference,
             order.DeliveryPin,
             order.ProofOfDeliveryImageUrl,
+            order.PaymentCheckoutUrl,
             order.Review == null
                 ? null
                 : new OrderReviewResponse(

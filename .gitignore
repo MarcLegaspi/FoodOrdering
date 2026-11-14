@@ -22,6 +22,8 @@ artifacts/
 .env
 .env.*
 appsettings.*.local.json
+*.csv
+*secret*
 
 # Local Uploads
 uploads/

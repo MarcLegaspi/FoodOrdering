@@ -970,6 +970,14 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
           this.removePromo();
           this.notes = '';
 
+          if (createdOrder.checkoutUrl) {
+            if (isGuest) {
+              this.saveRecentGuestOrder(createdOrder.publicId);
+            }
+            window.location.href = createdOrder.checkoutUrl;
+            return;
+          }
+
           if (isGuest) {
             this.saveRecentGuestOrder(createdOrder.publicId);
             void this.router.navigate(['/', createdOrder.storeSlug, 'orders', createdOrder.publicId]);

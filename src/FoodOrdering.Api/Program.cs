@@ -82,6 +82,7 @@ app.MapMenuItemEndpoints();
 app.MapPromoEndpoints();
 app.MapReviewEndpoints();
 app.MapOrderEndpoints();
+app.MapPaymentEndpoints();
 app.MapHub<OrderHub>("/hubs/orders");
 
 // Automatically apply any pending EF Core database migrations on startup

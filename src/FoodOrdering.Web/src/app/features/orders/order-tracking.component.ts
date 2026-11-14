@@ -34,6 +34,15 @@ import { OrderLiveService } from '../../core/services/order-live.service';
             </div>
           </div>
         } @else if (order(); as o) {
+          @if (paymentBanner(); as banner) {
+            <div
+              class="rounded-xl border p-4 text-center text-sm font-semibold shadow-xs"
+              [class]="banner.startsWith('🎉') ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-amber-50 text-amber-900'"
+            >
+              {{ banner }}
+            </div>
+          }
+
           <!-- Header Banner -->
           <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div class="bg-slate-900 px-6 py-6 text-white sm:flex sm:items-center sm:justify-between">
@@ -395,6 +404,7 @@ export class OrderTrackingComponent implements OnInit, OnDestroy {
   readonly hoverRating = signal<number>(0);
   readonly submittingReview = signal<boolean>(false);
   readonly reviewError = signal<string | null>(null);
+  readonly paymentBanner = signal<string | null>(null);
   reviewComment = '';
 
   readonly OrderStatus = OrderStatus;
@@ -407,6 +417,15 @@ export class OrderTrackingComponent implements OnInit, OnDestroy {
   private currentPublicId: string | null = null;
 
   ngOnInit(): void {
+    this.route.queryParamMap.subscribe((qp) => {
+      const payment = qp.get('payment');
+      if (payment === 'success') {
+        this.paymentBanner.set('🎉 Payment successful! Your order is confirmed and prioritized.');
+      } else if (payment === 'failed') {
+        this.paymentBanner.set('⚠️ Payment was not completed. You can settle payment with the rider upon arrival.');
+      }
+    });
+
     this.route.paramMap.subscribe((params) => {
       const publicId = params.get('publicId');
       const slug = params.get('storeSlug');

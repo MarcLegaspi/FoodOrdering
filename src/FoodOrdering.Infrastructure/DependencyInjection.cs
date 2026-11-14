@@ -4,6 +4,7 @@ using FoodOrdering.Application.Common.Interfaces;
 using FoodOrdering.Infrastructure.Database;
 using FoodOrdering.Infrastructure.Identity;
 using FoodOrdering.Infrastructure.MultiTenancy;
+using FoodOrdering.Infrastructure.Payments;
 using FoodOrdering.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -104,6 +105,9 @@ public static class DependencyInjection
 
             return sp.GetRequiredService<LocalFileImageStorageService>();
         });
+
+        services.Configure<XenditOptions>(configuration.GetSection(XenditOptions.SectionName));
+        services.AddHttpClient<IPaymentGatewayService, XenditPaymentGatewayService>();
 
         return services;
     }

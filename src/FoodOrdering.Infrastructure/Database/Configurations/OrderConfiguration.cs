@@ -119,6 +119,9 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.PaymentReference)
             .HasMaxLength(100);
 
+        builder.Property(o => o.PaymentCheckoutUrl)
+            .HasMaxLength(1000);
+
         builder.Property(o => o.DeliveryPin)
             .HasMaxLength(10);
 
