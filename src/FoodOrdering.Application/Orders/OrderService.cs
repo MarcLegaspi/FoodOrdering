@@ -261,6 +261,22 @@ public sealed class OrderService(
 
         var totalAmount = Math.Max(0m, subtotal - discountAmount) + deliveryFee;
 
+        // Payment and Delivery Security Initialization:
+        // Delivery orders generate a secure 4-digit PIN that the customer provides to the rider as proof-of-delivery.
+        var paymentMethod = request.PaymentMethod;
+        var paymentStatus = PaymentStatus.Pending;
+        string? paymentReference = null;
+        DateTime? paidAtUtc = null;
+        var deliveryPin = request.OrderType == OrderType.Delivery ? Random.Shared.Next(1000, 10000).ToString() : null;
+
+        // GCash Online express orders are pre-paid upfront to ensure priority queueing in the kitchen.
+        if (paymentMethod == PaymentMethod.GCashOnline)
+        {
+            paymentStatus = PaymentStatus.Paid;
+            paidAtUtc = DateTime.UtcNow;
+            paymentReference = $"GCASH-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+        }
+
         var order = new Order
         {
             StoreId = storeId,
@@ -281,6 +297,12 @@ public sealed class OrderService(
             TotalAmount = totalAmount,
             EstimatedDeliveryTime = estimatedDeliveryTime,
             Notes = request.Notes?.Trim() ?? string.Empty,
+            PaymentMethod = paymentMethod,
+            PaymentStatus = paymentStatus,
+            CashChangeFor = request.CashChangeFor,
+            PaidAtUtc = paidAtUtc,
+            PaymentReference = paymentReference,
+            DeliveryPin = deliveryPin,
             Items = orderItems
         };
 
@@ -318,7 +340,19 @@ public sealed class OrderService(
                 i.Options.Select(o => new OrderItemOptionResponse(
                     o.GroupNameSnapshot,
                     o.OptionNameSnapshot,
-                    o.PriceDeltaSnapshot)).ToList())).ToList()),
+                    o.PriceDeltaSnapshot)).ToList())).ToList(),
+            order.PaymentMethod,
+            order.PaymentStatus,
+            order.CashChangeFor,
+            order.DriverName,
+            order.DriverPhone,
+            order.DispatchedAtUtc,
+            order.DeliveredAtUtc,
+            order.PaymentCollectedVia,
+            order.PaidAtUtc,
+            order.PaymentReference,
+            order.DeliveryPin,
+            order.ProofOfDeliveryImageUrl),
             customerUserId);
     }
 
@@ -361,11 +395,18 @@ public sealed class OrderService(
             .ToListAsync(ct);
     }
 
-    public async Task<OrderResult> UpdateStatusAsync(
+    public Task<OrderResult> UpdateStatusAsync(
         Guid publicId,
         OrderStatus newStatus,
+        CancellationToken ct = default) =>
+        UpdateStatusAsync(publicId, new UpdateOrderStatusRequest(newStatus), ct);
+
+    public async Task<OrderResult> UpdateStatusAsync(
+        Guid publicId,
+        UpdateOrderStatusRequest request,
         CancellationToken ct = default)
     {
+        var newStatus = request.Status;
         if (!Enum.IsDefined(newStatus))
         {
             return OrderResult.ValidationError("Invalid order status.");
@@ -401,9 +442,90 @@ public sealed class OrderService(
             }
         }
 
+        // Critical: Completing a delivery order requires verifying the customer's 4-digit Delivery PIN
+        // as proof-of-delivery, stamping DeliveredAtUtc, and marking payment as settled.
+        if (newStatus == OrderStatus.Completed)
+        {
+            if (order.OrderType == OrderType.Delivery && !string.IsNullOrWhiteSpace(order.DeliveryPin))
+            {
+                var inputPin = request.DeliveryPin?.Trim();
+                if (string.IsNullOrWhiteSpace(inputPin) || !string.Equals(inputPin, order.DeliveryPin, StringComparison.Ordinal))
+                {
+                    return OrderResult.ValidationError("Invalid delivery PIN. Please ask the customer for their 4-digit delivery PIN.");
+                }
+            }
+
+            // Record actual completion timestamp
+            order.DeliveredAtUtc = DateTime.UtcNow;
+
+            // Settle payment status upon successful handoff
+            if (request.PaymentCollectedVia.HasValue)
+            {
+                order.PaymentCollectedVia = request.PaymentCollectedVia.Value;
+                order.PaymentStatus = PaymentStatus.Paid;
+                order.PaidAtUtc ??= DateTime.UtcNow;
+            }
+            else if (order.PaymentStatus == PaymentStatus.Pending)
+            {
+                order.PaymentStatus = PaymentStatus.Paid;
+                order.PaidAtUtc ??= DateTime.UtcNow;
+            }
+        }
+
         order.Status = newStatus;
         await db.SaveChangesAsync(ct);
 
+        return OrderResult.Success(ToResponse(order), order.CustomerUserId);
+    }
+
+    /// <summary>
+    /// Assigns a rider/driver to a delivery order, records the dispatch timestamp,
+    /// and advances status to OutForDelivery.
+    /// </summary>
+    public async Task<OrderResult> AssignDriverAsync(
+        Guid publicId,
+        AssignDriverRequest request,
+        CancellationToken ct = default)
+    {
+        var driverName = request.DriverName?.Trim();
+        var driverPhone = request.DriverPhone?.Trim();
+
+        if (string.IsNullOrWhiteSpace(driverName))
+        {
+            return OrderResult.ValidationError("Driver name is required.");
+        }
+
+        var order = await db.Orders
+            .Include(o => o.Store)
+            .Include(o => o.Review)
+            .Include(o => o.Items)
+            .ThenInclude(i => i.MenuItem)
+            .Include(o => o.Items)
+            .ThenInclude(i => i.Options)
+            .FirstOrDefaultAsync(o => o.PublicId == publicId, ct);
+
+        if (order is null)
+        {
+            return OrderResult.NotFound("Order was not found for this store.");
+        }
+
+        if (order.OrderType != OrderType.Delivery)
+        {
+            return OrderResult.ValidationError("Drivers can only be assigned to delivery orders.");
+        }
+
+        // Rider can be assigned while order is Preparing, Ready, or re-assigned if already OutForDelivery
+        if (order.Status is not (OrderStatus.Preparing or OrderStatus.Ready or OrderStatus.OutForDelivery))
+        {
+            return OrderResult.ValidationError($"Cannot assign driver when order is in {order.Status} status.");
+        }
+
+        order.DriverName = driverName;
+        order.DriverPhone = driverPhone;
+        order.Status = OrderStatus.OutForDelivery;
+        order.DispatchedAtUtc ??= DateTime.UtcNow;
+
+        await db.SaveChangesAsync(ct);
         return OrderResult.Success(ToResponse(order), order.CustomerUserId);
     }
 
@@ -466,7 +588,17 @@ public sealed class OrderService(
             return true;
         }
 
-        return next > current;
+        return (current, next) switch
+        {
+            (OrderStatus.Pending, OrderStatus.Confirmed) => true,
+            (OrderStatus.Confirmed, OrderStatus.Preparing) => true,
+            (OrderStatus.Preparing, OrderStatus.Ready) => true,
+            (OrderStatus.Preparing, OrderStatus.OutForDelivery) => true,
+            (OrderStatus.Ready, OrderStatus.OutForDelivery) => true,
+            (OrderStatus.Ready, OrderStatus.Completed) => true,
+            (OrderStatus.OutForDelivery, OrderStatus.Completed) => true,
+            _ => false
+        };
     }
 
     private static (
@@ -581,6 +713,18 @@ public sealed class OrderService(
                     opt.GroupNameSnapshot,
                     opt.OptionNameSnapshot,
                     opt.PriceDeltaSnapshot)).ToList())).ToList(),
+            o.PaymentMethod,
+            o.PaymentStatus,
+            o.CashChangeFor,
+            o.DriverName,
+            o.DriverPhone,
+            o.DispatchedAtUtc,
+            o.DeliveredAtUtc,
+            o.PaymentCollectedVia,
+            o.PaidAtUtc,
+            o.PaymentReference,
+            o.DeliveryPin,
+            o.ProofOfDeliveryImageUrl,
             o.Review == null
                 ? null
                 : new OrderReviewResponse(
@@ -622,6 +766,18 @@ public sealed class OrderService(
                     opt.GroupNameSnapshot,
                     opt.OptionNameSnapshot,
                     opt.PriceDeltaSnapshot)).ToList())).ToList(),
+            order.PaymentMethod,
+            order.PaymentStatus,
+            order.CashChangeFor,
+            order.DriverName,
+            order.DriverPhone,
+            order.DispatchedAtUtc,
+            order.DeliveredAtUtc,
+            order.PaymentCollectedVia,
+            order.PaidAtUtc,
+            order.PaymentReference,
+            order.DeliveryPin,
+            order.ProofOfDeliveryImageUrl,
             order.Review == null
                 ? null
                 : new OrderReviewResponse(

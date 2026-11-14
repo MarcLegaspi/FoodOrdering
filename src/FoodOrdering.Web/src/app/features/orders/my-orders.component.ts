@@ -122,15 +122,37 @@ import { TenantService } from '../../core/tenant/tenant.service';
                 }
               }
 
-              @if (order.status === OrderStatus.Pending) {
-                <div class="mt-4 flex justify-end">
-                  <button
-                    type="button"
-                    (click)="cancelOrder(order.publicId)"
-                    class="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
-                  >
-                    Cancel Order
-                  </button>
+              @if (order.status !== OrderStatus.Completed && order.status !== OrderStatus.Cancelled) {
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                  <div class="flex items-center gap-2">
+                    @if (order.orderType === OrderType.Delivery && order.deliveryPin) {
+                      <span class="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">
+                        🔐 PIN: {{ order.deliveryPin }}
+                      </span>
+                    }
+                    @if (order.driverName) {
+                      <span class="inline-flex items-center gap-1 rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-900">
+                        🛵 Rider: {{ order.driverName }}
+                      </span>
+                    }
+                  </div>
+                  <div class="flex items-center gap-2">
+                    @if (order.status === OrderStatus.Pending) {
+                      <button
+                        type="button"
+                        (click)="cancelOrder(order.publicId)"
+                        class="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+                      >
+                        Cancel Order
+                      </button>
+                    }
+                    <a
+                      [routerLink]="['/', order.storeSlug, 'orders', order.publicId]"
+                      class="rounded-md bg-slate-900 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-800"
+                    >
+                      Track Live Order →
+                    </a>
+                  </div>
                 </div>
               }
             </div>

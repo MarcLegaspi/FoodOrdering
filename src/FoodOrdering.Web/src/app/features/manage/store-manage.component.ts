@@ -11,6 +11,9 @@ import {
   Order,
   OrderStatus,
   OrderType,
+  PaymentCollectionMethod,
+  PaymentMethod,
+  PaymentStatus,
   PromoCode,
   PromoDiscountType,
   SaveMenuItemOptionGroupRequest,
@@ -177,11 +180,27 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                   <span class="font-bold text-slate-900">{{ order.orderNumber }}</span>
                   <span class="ml-2 text-xs text-slate-400">{{ order.createdAtUtc | date: 'short' }}</span>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
                   <span class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
                     {{ orderTypeText(order.orderType) }}
                   </span>
-                  <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  @if (order.paymentMethod === PaymentMethod.PayOnDelivery) {
+                    <span class="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs font-medium text-amber-800">
+                      💵 Pay on Delivery
+                    </span>
+                  } @else if (order.paymentMethod === PaymentMethod.GCashOnline) {
+                    <span class="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-bold text-blue-800">
+                      📱 Pre-paid GCash
+                    </span>
+                  } @else if (order.paymentMethod === PaymentMethod.PayAtCounter) {
+                    <span class="rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+                      🏪 Pay at Counter
+                    </span>
+                  }
+                  <span
+                    class="rounded-full px-3 py-1 text-xs font-semibold"
+                    [class]="order.status === OrderStatus.OutForDelivery ? 'bg-purple-100 text-purple-900 border border-purple-200' : 'bg-slate-100 text-slate-700'"
+                  >
                     {{ statusText(order.status) }}
                   </span>
                   <div class="text-right">
@@ -219,6 +238,11 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 @if (order.deliveryLandmark) {
                   <span class="rounded bg-amber-50 px-1.5 py-0.5 text-amber-800">🏢 Landmark: {{ order.deliveryLandmark }}</span>
                 }
+                @if (order.cashChangeFor) {
+                  <span class="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-800 font-semibold border border-emerald-200">
+                    💵 Change for {{ order.cashChangeFor | currency }}
+                  </span>
+                }
                 @if (order.notes) {
                   <span class="italic">Notes: {{ order.notes }}</span>
                 }
@@ -253,13 +277,44 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 </div>
               }
 
+              @if (order.driverName) {
+                <div class="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-purple-50/80 p-2.5 text-xs border border-purple-200">
+                  <div class="flex items-center gap-2">
+                    <span class="text-base">🛵</span>
+                    <span class="font-bold text-purple-900">Rider: {{ order.driverName }}</span>
+                    <a [href]="'tel:' + order.driverPhone" class="text-purple-700 underline font-medium">📞 {{ order.driverPhone }}</a>
+                    @if (order.dispatchedAtUtc) {
+                      <span class="text-slate-500">· Dispatched {{ order.dispatchedAtUtc | date:'shortTime' }}</span>
+                    }
+                  </div>
+                  @if (order.status === OrderStatus.OutForDelivery) {
+                    <span class="rounded-full bg-purple-600 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider animate-pulse">
+                      Out for Delivery
+                    </span>
+                  }
+                </div>
+              }
+
+              @if (order.status === OrderStatus.Completed && (order.deliveredAtUtc || order.paymentCollectedVia)) {
+                <div class="mt-2.5 flex flex-wrap items-center gap-3 text-xs text-slate-500 border-t border-slate-100 pt-2">
+                  @if (order.deliveredAtUtc) {
+                    <span>Delivered at {{ order.deliveredAtUtc | date:'short' }}</span>
+                  }
+                  @if (order.paymentCollectedVia) {
+                    <span class="font-medium text-emerald-700">
+                      Payment collected via {{ order.paymentCollectedVia === PaymentCollectionMethod.Cash ? 'Cash' : 'GCash QR' }}
+                    </span>
+                  }
+                </div>
+              }
+
               @if (order.status !== OrderStatus.Completed && order.status !== OrderStatus.Cancelled) {
                 <div class="mt-4 flex flex-wrap gap-2">
                   @if (order.status === OrderStatus.Pending) {
                     <button
                       type="button"
                       (click)="advanceOrder(order.publicId, OrderStatus.Confirmed)"
-                      class="rounded-md bg-slate-900 px-3 py-1 text-xs font-medium text-white"
+                      class="rounded-md bg-slate-900 px-3 py-1 text-xs font-medium text-white hover:bg-slate-800"
                     >
                       Confirm
                     </button>
@@ -268,7 +323,7 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                     <button
                       type="button"
                       (click)="advanceOrder(order.publicId, OrderStatus.Preparing)"
-                      class="rounded-md bg-slate-900 px-3 py-1 text-xs font-medium text-white"
+                      class="rounded-md bg-slate-900 px-3 py-1 text-xs font-medium text-white hover:bg-slate-800"
                     >
                       Start Preparing
                     </button>
@@ -277,24 +332,52 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                     <button
                       type="button"
                       (click)="advanceOrder(order.publicId, OrderStatus.Ready)"
-                      class="rounded-md bg-slate-900 px-3 py-1 text-xs font-medium text-white"
+                      class="rounded-md bg-slate-900 px-3 py-1 text-xs font-medium text-white hover:bg-slate-800"
                     >
                       Mark Ready
                     </button>
+                    @if (order.orderType === OrderType.Delivery) {
+                      <button
+                        type="button"
+                        (click)="openAssignDriver(order)"
+                        class="rounded-md bg-purple-600 px-3 py-1 text-xs font-medium text-white hover:bg-purple-700"
+                      >
+                        🛵 Assign Rider & Dispatch
+                      </button>
+                    }
                   }
                   @if (order.status === OrderStatus.Ready) {
+                    @if (order.orderType === OrderType.Delivery) {
+                      <button
+                        type="button"
+                        (click)="openAssignDriver(order)"
+                        class="rounded-md bg-purple-600 px-3 py-1 text-xs font-medium text-white hover:bg-purple-700"
+                      >
+                        🛵 Assign Rider & Dispatch
+                      </button>
+                    } @else {
+                      <button
+                        type="button"
+                        (click)="advanceOrder(order.publicId, OrderStatus.Completed)"
+                        class="rounded-md bg-emerald-700 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-800"
+                      >
+                        Complete Pickup
+                      </button>
+                    }
+                  }
+                  @if (order.status === OrderStatus.OutForDelivery) {
                     <button
                       type="button"
-                      (click)="advanceOrder(order.publicId, OrderStatus.Completed)"
-                      class="rounded-md bg-emerald-700 px-3 py-1 text-xs font-medium text-white"
+                      (click)="openCompleteDelivery(order)"
+                      class="rounded-md bg-emerald-700 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-800"
                     >
-                      Complete
+                      ✅ Complete Delivery (Enter PIN)
                     </button>
                   }
                   <button
                     type="button"
                     (click)="advanceOrder(order.publicId, OrderStatus.Cancelled)"
-                    class="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-700"
+                    class="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
                   >
                     Cancel
                   </button>
@@ -1027,6 +1110,160 @@ import { resolveImageUrl } from '../../core/utils/media-url';
           </form>
         </div>
       }
+
+      <!-- Assign Driver Modal -->
+      @if (assigningDriverOrder(); as targetOrder) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
+          <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">🛵</span>
+                <h3 class="font-bold text-slate-900">Assign Driver & Dispatch</h3>
+              </div>
+              <button type="button" (click)="closeAssignDriver()" class="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+
+            <div class="mt-3 text-xs text-slate-600">
+              Order <strong>{{ targetOrder.orderNumber }}</strong> · {{ targetOrder.customerName || 'Customer' }}
+              <p class="mt-0.5 text-slate-500">📍 {{ targetOrder.deliveryAddress }}</p>
+            </div>
+
+            @if (driverModalError()) {
+              <div class="mt-3 rounded-lg bg-red-50 p-2.5 text-xs text-red-700">{{ driverModalError() }}</div>
+            }
+
+            <div class="mt-4 space-y-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700">Rider / Driver Name *</label>
+                <input
+                  type="text"
+                  [(ngModel)]="driverNameInput"
+                  placeholder="e.g. Juan Dela Cruz"
+                  class="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-slate-900 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700">Rider Contact Number *</label>
+                <input
+                  type="tel"
+                  [(ngModel)]="driverPhoneInput"
+                  placeholder="e.g. 0917 123 4567"
+                  class="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-slate-900 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div class="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+              <button
+                type="button"
+                (click)="closeAssignDriver()"
+                class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                (click)="submitAssignDriver()"
+                [disabled]="submittingDriver()"
+                class="rounded-lg bg-purple-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-700 disabled:opacity-50"
+              >
+                {{ submittingDriver() ? 'Dispatching...' : 'Dispatch Order 🛵' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Complete Delivery Modal -->
+      @if (completingDeliveryOrder(); as targetOrder) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
+          <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">✅</span>
+                <h3 class="font-bold text-slate-900">Complete Delivery</h3>
+              </div>
+              <button type="button" (click)="closeCompleteDelivery()" class="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+
+            <div class="mt-3 text-xs text-slate-600">
+              Order <strong>{{ targetOrder.orderNumber }}</strong> · Total: <strong>{{ targetOrder.totalAmount | currency }}</strong>
+            </div>
+
+            @if (completeModalError()) {
+              <div class="mt-3 rounded-lg bg-red-50 p-2.5 text-xs text-red-700">{{ completeModalError() }}</div>
+            }
+
+            <div class="mt-4 space-y-4">
+              <!-- 4-digit PIN input -->
+              <div class="rounded-xl border border-amber-200 bg-amber-50/70 p-3">
+                <label class="block text-xs font-bold text-amber-900">🔐 Customer 4-Digit Delivery PIN *</label>
+                <p class="text-[11px] text-amber-800 mt-0.5">
+                  Ask the customer for the 4-digit PIN displayed on their live tracking screen.
+                </p>
+                <input
+                  type="text"
+                  maxlength="4"
+                  [(ngModel)]="deliveryPinInput"
+                  placeholder="e.g. 1234"
+                  class="mt-2 w-full rounded-lg border border-amber-300 bg-white p-2.5 text-center text-xl font-mono font-bold tracking-widest text-slate-900 focus:border-slate-900 focus:outline-none"
+                />
+              </div>
+
+              <!-- Payment collection if Pay on Delivery -->
+              @if (targetOrder.paymentMethod === PaymentMethod.PayOnDelivery) {
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                  <label class="block text-xs font-bold text-slate-800">
+                    Payment Collection: {{ targetOrder.totalAmount | currency }}
+                  </label>
+                  <p class="text-[11px] text-slate-500">How did the customer pay the rider?</p>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      (click)="paymentCollectionInput = PaymentCollectionMethod.Cash"
+                      class="rounded-lg border p-2 text-center text-xs font-semibold transition"
+                      [class]="paymentCollectionInput === PaymentCollectionMethod.Cash
+                        ? 'border-slate-900 bg-slate-900 text-white'
+                        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
+                    >
+                      💵 Cash
+                    </button>
+                    <button
+                      type="button"
+                      (click)="paymentCollectionInput = PaymentCollectionMethod.GCash"
+                      class="rounded-lg border p-2 text-center text-xs font-semibold transition"
+                      [class]="paymentCollectionInput === PaymentCollectionMethod.GCash
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
+                    >
+                      📱 GCash QR
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div class="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+              <button
+                type="button"
+                (click)="closeCompleteDelivery()"
+                class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                (click)="submitCompleteDelivery()"
+                [disabled]="submittingComplete()"
+                class="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {{ submittingComplete() ? 'Verifying PIN...' : 'Confirm Delivery ✓' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `
 })
@@ -1047,15 +1284,32 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   readonly PromoDiscountType = PromoDiscountType;
   readonly imageUrl = resolveImageUrl;
 
+  readonly PaymentMethod = PaymentMethod;
+  readonly PaymentStatus = PaymentStatus;
+  readonly PaymentCollectionMethod = PaymentCollectionMethod;
+
   readonly orderStatusOptions: Array<{ label: string; value: OrderStatus | null }> = [
     { label: 'All', value: null },
     { label: 'Pending', value: OrderStatus.Pending },
     { label: 'Confirmed', value: OrderStatus.Confirmed },
     { label: 'Preparing', value: OrderStatus.Preparing },
     { label: 'Ready', value: OrderStatus.Ready },
+    { label: 'Out for Delivery', value: OrderStatus.OutForDelivery },
     { label: 'Completed', value: OrderStatus.Completed },
     { label: 'Cancelled', value: OrderStatus.Cancelled }
   ];
+
+  readonly assigningDriverOrder = signal<Order | null>(null);
+  driverNameInput = '';
+  driverPhoneInput = '';
+  readonly submittingDriver = signal(false);
+  readonly driverModalError = signal<string | null>(null);
+
+  readonly completingDeliveryOrder = signal<Order | null>(null);
+  deliveryPinInput = '';
+  paymentCollectionInput: PaymentCollectionMethod = PaymentCollectionMethod.Cash;
+  readonly submittingComplete = signal(false);
+  readonly completeModalError = signal<string | null>(null);
 
   readonly storeSlug = signal('');
   readonly store = signal<Store | null>(null);
@@ -1301,6 +1555,109 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     this.api.updateOrderStatus(publicId, status).subscribe({
       next: () => this.refreshOrders(),
       error: (err) => this.setError(err, 'Could not update order status.')
+    });
+  }
+
+  /**
+   * Opens the driver assignment modal for delivery orders in Preparing or Ready status.
+   */
+  openAssignDriver(order: Order): void {
+    this.assigningDriverOrder.set(order);
+    this.driverNameInput = order.driverName ?? '';
+    this.driverPhoneInput = order.driverPhone ?? '';
+    this.driverModalError.set(null);
+  }
+
+  closeAssignDriver(): void {
+    this.assigningDriverOrder.set(null);
+    this.driverNameInput = '';
+    this.driverPhoneInput = '';
+    this.driverModalError.set(null);
+  }
+
+  /**
+   * Dispatches the order with the assigned rider name and phone, transitioning status to OutForDelivery.
+   */
+  submitAssignDriver(): void {
+    const order = this.assigningDriverOrder();
+    if (!order) return;
+
+    const name = this.driverNameInput.trim();
+    const phone = this.driverPhoneInput.trim();
+
+    if (!name) {
+      this.driverModalError.set('Please enter the delivery rider name.');
+      return;
+    }
+    if (!phone) {
+      this.driverModalError.set('Please enter rider phone number.');
+      return;
+    }
+
+    this.submittingDriver.set(true);
+    this.driverModalError.set(null);
+
+    this.api.assignDriver(order.publicId, name, phone).subscribe({
+      next: () => {
+        this.submittingDriver.set(false);
+        this.closeAssignDriver();
+        this.message.set(`Rider assigned to order #${order.orderNumber}. Order is now out for delivery!`);
+        this.refreshOrders();
+      },
+      error: (err) => {
+        this.submittingDriver.set(false);
+        this.driverModalError.set(err?.error?.error ?? err?.error?.message ?? 'Could not assign rider.');
+      }
+    });
+  }
+
+  /**
+   * Opens the completion modal for OutForDelivery orders, prompting for the customer's 4-digit PIN.
+   */
+  openCompleteDelivery(order: Order): void {
+    this.completingDeliveryOrder.set(order);
+    this.deliveryPinInput = '';
+    this.paymentCollectionInput = PaymentCollectionMethod.Cash;
+    this.completeModalError.set(null);
+  }
+
+  closeCompleteDelivery(): void {
+    this.completingDeliveryOrder.set(null);
+    this.deliveryPinInput = '';
+    this.completeModalError.set(null);
+  }
+
+  /**
+   * Verifies the customer's 4-digit PIN and records payment collection (Cash or GCash QR) to complete delivery.
+   */
+  submitCompleteDelivery(): void {
+    const order = this.completingDeliveryOrder();
+    if (!order) return;
+
+    const pin = this.deliveryPinInput.trim();
+    if (order.orderType === OrderType.Delivery) {
+      if (!pin || pin.length !== 4) {
+        this.completeModalError.set('Please enter the 4-digit Delivery PIN from the customer.');
+        return;
+      }
+    }
+
+    this.submittingComplete.set(true);
+    this.completeModalError.set(null);
+
+    const paymentCollection = order.paymentMethod === PaymentMethod.PayOnDelivery ? this.paymentCollectionInput : undefined;
+
+    this.api.updateOrderStatus(order.publicId, OrderStatus.Completed, paymentCollection, pin || undefined).subscribe({
+      next: () => {
+        this.submittingComplete.set(false);
+        this.closeCompleteDelivery();
+        this.message.set(`Order #${order.orderNumber} successfully completed.`);
+        this.refreshOrders();
+      },
+      error: (err) => {
+        this.submittingComplete.set(false);
+        this.completeModalError.set(err?.error?.error ?? err?.error?.message ?? 'Could not complete delivery. Please verify the customer PIN.');
+      }
     });
   }
 

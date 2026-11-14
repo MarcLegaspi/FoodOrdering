@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
-import { CustomerType, Order, OrderStatus, OrderType } from '../../core/models/api.models';
+import { CustomerType, Order, OrderStatus, OrderType, PaymentMethod, PaymentStatus } from '../../core/models/api.models';
 import { FoodOrderingApiService } from '../../core/services/food-ordering-api.service';
 import { OrderLiveService } from '../../core/services/order-live.service';
 
@@ -69,34 +69,34 @@ import { OrderLiveService } from '../../core/services/order-live.service';
                   <div class="space-y-2">
                     <div
                       class="mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all"
-                      [ngClass]="stepCircleClass(o.status, OrderStatus.Pending)"
+                      [ngClass]="stepCircleClass(o.status, 'received')"
                     >
                       1
                     </div>
-                    <span [ngClass]="stepTextClass(o.status, OrderStatus.Pending)">Received</span>
+                    <span [ngClass]="stepTextClass(o.status, 'received')">Received</span>
                   </div>
 
                   <!-- Preparing -->
                   <div class="space-y-2">
                     <div
                       class="mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all"
-                      [ngClass]="stepCircleClass(o.status, OrderStatus.Preparing)"
+                      [ngClass]="stepCircleClass(o.status, 'preparing')"
                     >
                       2
                     </div>
-                    <span [ngClass]="stepTextClass(o.status, OrderStatus.Preparing)">Preparing</span>
+                    <span [ngClass]="stepTextClass(o.status, 'preparing')">Preparing</span>
                   </div>
 
-                  <!-- Ready -->
+                  <!-- Ready / Out For Delivery -->
                   <div class="space-y-2">
                     <div
                       class="mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all"
-                      [ngClass]="stepCircleClass(o.status, OrderStatus.Ready)"
+                      [ngClass]="stepCircleClass(o.status, 'transit')"
                     >
                       3
                     </div>
-                    <span [ngClass]="stepTextClass(o.status, OrderStatus.Ready)">
-                      {{ o.orderType === OrderType.Delivery ? 'Out for Delivery' : 'Ready for Pickup' }}
+                    <span [ngClass]="stepTextClass(o.status, 'transit')">
+                      {{ o.orderType === OrderType.Delivery ? (o.status === OrderStatus.OutForDelivery ? 'Out for Delivery 🛵' : (isStepDone(o.status, 'transit') ? 'Dispatched' : 'Ready for Dispatch')) : 'Ready for Pickup 🛍️' }}
                     </span>
                   </div>
 
@@ -104,11 +104,13 @@ import { OrderLiveService } from '../../core/services/order-live.service';
                   <div class="space-y-2">
                     <div
                       class="mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all"
-                      [ngClass]="stepCircleClass(o.status, OrderStatus.Completed)"
+                      [ngClass]="stepCircleClass(o.status, 'completed')"
                     >
                       ✓
                     </div>
-                    <span [ngClass]="stepTextClass(o.status, OrderStatus.Completed)">Completed</span>
+                    <span [ngClass]="stepTextClass(o.status, 'completed')">
+                      {{ o.orderType === OrderType.Delivery ? 'Delivered 🎉' : 'Completed 🎉' }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -118,9 +120,58 @@ import { OrderLiveService } from '../../core/services/order-live.service';
               </div>
             }
 
-            <!-- Customer & Fulfillment Information -->
-            <div class="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-2 sm:divide-y-0 sm:divide-x border-b border-slate-100 p-6 text-sm">
-              <div class="space-y-1 pr-4">
+            <!-- Delivery PIN Banner (Customer security proof of delivery) -->
+            @if (o.orderType === OrderType.Delivery && o.deliveryPin && o.status !== OrderStatus.Completed && o.status !== OrderStatus.Cancelled) {
+              <div class="border-b border-amber-200 bg-amber-50/80 px-6 py-4">
+                <div class="flex flex-col items-center sm:flex-row sm:justify-between gap-3 text-center sm:text-left">
+                  <div>
+                    <div class="flex items-center justify-center sm:justify-start gap-1.5 font-bold text-amber-900 text-sm">
+                      <span>🔐</span> Your Delivery PIN
+                    </div>
+                    <p class="text-xs text-amber-800 mt-0.5">
+                      Give this 4-digit PIN to your rider upon arrival to safely verify and receive your food.
+                    </p>
+                  </div>
+                  <div class="rounded-xl border border-amber-300 bg-white px-5 py-2 text-2xl font-black tracking-widest text-slate-900 shadow-xs">
+                    {{ o.deliveryPin }}
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- Driver Card (When driver is assigned or order is out for delivery) -->
+            @if (o.driverName) {
+              <div class="border-b border-purple-200 bg-purple-50/70 px-6 py-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600 text-lg text-white shadow-xs">
+                      🛵
+                    </div>
+                    <div>
+                      <div class="text-[10px] font-bold uppercase tracking-wider text-purple-700">Delivery Rider</div>
+                      <div class="text-sm font-bold text-slate-900">{{ o.driverName }}</div>
+                      @if (o.dispatchedAtUtc) {
+                        <div class="text-[11px] text-slate-500">
+                          Dispatched at {{ o.dispatchedAtUtc | date:'shortTime' }}
+                        </div>
+                      }
+                    </div>
+                  </div>
+                  @if (o.driverPhone) {
+                    <a
+                      [href]="'tel:' + o.driverPhone"
+                      class="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-purple-700 transition"
+                    >
+                      📞 Call Rider ({{ o.driverPhone }})
+                    </a>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Customer, Fulfillment & Payment Information -->
+            <div class="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-3 sm:divide-y-0 sm:divide-x border-b border-slate-100 p-6 text-sm">
+              <div class="space-y-1 sm:pr-4">
                 <span class="text-xs font-bold tracking-wider text-slate-400 uppercase">Customer Details</span>
                 <p class="font-semibold text-slate-900">{{ o.customerName || 'Customer' }}</p>
                 <p class="text-slate-600">📞 {{ o.customerPhone }}</p>
@@ -128,7 +179,7 @@ import { OrderLiveService } from '../../core/services/order-live.service';
                   <p class="text-slate-500 text-xs">✉ {{ o.customerEmail }}</p>
                 }
               </div>
-              <div class="space-y-1 pt-4 sm:pt-0 sm:pl-4">
+              <div class="space-y-1 pt-4 sm:pt-0 sm:px-4">
                 <span class="text-xs font-bold tracking-wider text-slate-400 uppercase">Fulfillment</span>
                 <p class="font-semibold text-slate-900">
                   {{ o.orderType === OrderType.Delivery ? 'Home Delivery' : 'Store Pickup' }}
@@ -146,6 +197,33 @@ import { OrderLiveService } from '../../core/services/order-live.service';
                 }
                 @if (o.notes) {
                   <p class="text-xs text-slate-500 italic mt-1">"{{ o.notes }}"</p>
+                }
+              </div>
+              <div class="space-y-1.5 pt-4 sm:pt-0 sm:pl-4">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold tracking-wider text-slate-400 uppercase">Payment</span>
+                  <span
+                    class="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                    [class]="o.paymentStatus === PaymentStatus.Paid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
+                  >
+                    {{ o.paymentStatus === PaymentStatus.Paid ? 'Paid' : 'Payment Due' }}
+                  </span>
+                </div>
+                @if (o.paymentMethod === PaymentMethod.PayOnDelivery) {
+                  <p class="font-semibold text-slate-800">💵 Pay on Delivery</p>
+                  <p class="text-xs text-slate-600">Cash or scan Rider's GCash QR</p>
+                  @if (o.cashChangeFor) {
+                    <p class="text-xs text-emerald-700 font-medium">
+                      Need change for: {{ o.cashChangeFor | currency }}
+                    </p>
+                  }
+                } @else if (o.paymentMethod === PaymentMethod.GCashOnline) {
+                  <p class="font-semibold text-blue-900">📱 GCash Online</p>
+                  <p class="text-xs text-slate-600">Ref: {{ o.paymentReference || 'GCASH' }}</p>
+                  <p class="text-[11px] text-blue-700 font-medium">⚡ Priority express pickup</p>
+                } @else {
+                  <p class="font-semibold text-slate-800">🏪 Pay at Counter</p>
+                  <p class="text-xs text-slate-600">Pay when picking up order</p>
                 }
               </div>
             </div>
@@ -322,6 +400,8 @@ export class OrderTrackingComponent implements OnInit, OnDestroy {
   readonly OrderStatus = OrderStatus;
   readonly OrderType = OrderType;
   readonly CustomerType = CustomerType;
+  readonly PaymentMethod = PaymentMethod;
+  readonly PaymentStatus = PaymentStatus;
 
   private orderSub: Subscription | null = null;
   private currentPublicId: string | null = null;
@@ -383,6 +463,8 @@ export class OrderTrackingComponent implements OnInit, OnDestroy {
         return 'Preparing in Kitchen';
       case OrderStatus.Ready:
         return 'Ready';
+      case OrderStatus.OutForDelivery:
+        return 'Out for Delivery 🛵';
       case OrderStatus.Completed:
         return 'Completed';
       case OrderStatus.Cancelled:
@@ -402,6 +484,8 @@ export class OrderTrackingComponent implements OnInit, OnDestroy {
         return 'bg-indigo-100 text-indigo-900';
       case OrderStatus.Ready:
         return 'bg-emerald-100 text-emerald-900';
+      case OrderStatus.OutForDelivery:
+        return 'bg-purple-100 text-purple-900 border border-purple-200';
       case OrderStatus.Completed:
         return 'bg-slate-200 text-slate-800';
       case OrderStatus.Cancelled:
@@ -411,17 +495,39 @@ export class OrderTrackingComponent implements OnInit, OnDestroy {
     }
   }
 
-  stepCircleClass(currentStatus: OrderStatus, step: OrderStatus): string {
-    const isPassedOrCurrent = currentStatus >= step;
-    if (isPassedOrCurrent) {
+  /**
+   * Evaluates order stepper progress chronologically:
+   * Received -> Preparing -> Transit (Ready / OutForDelivery) -> Completed.
+   */
+  isStepDone(currentStatus: OrderStatus, step: 'received' | 'preparing' | 'transit' | 'completed'): boolean {
+    if (currentStatus === OrderStatus.Cancelled) return false;
+    switch (step) {
+      case 'received':
+        return true;
+      case 'preparing':
+        return currentStatus === OrderStatus.Confirmed || currentStatus === OrderStatus.Preparing || currentStatus === OrderStatus.Ready || currentStatus === OrderStatus.OutForDelivery || currentStatus === OrderStatus.Completed;
+      case 'transit':
+        return currentStatus === OrderStatus.Ready || currentStatus === OrderStatus.OutForDelivery || currentStatus === OrderStatus.Completed;
+      case 'completed':
+        return currentStatus === OrderStatus.Completed;
+    }
+  }
+
+  stepCircleClass(currentStatus: OrderStatus, step: 'received' | 'preparing' | 'transit' | 'completed'): string {
+    if (this.isStepDone(currentStatus, step)) {
+      if (step === 'transit' && currentStatus === OrderStatus.OutForDelivery) {
+        return 'bg-purple-600 text-white animate-pulse';
+      }
+      if (step === 'completed' && currentStatus === OrderStatus.Completed) {
+        return 'bg-emerald-600 text-white';
+      }
       return 'bg-slate-900 text-white';
     }
     return 'bg-slate-200 text-slate-400';
   }
 
-  stepTextClass(currentStatus: OrderStatus, step: OrderStatus): string {
-    const isPassedOrCurrent = currentStatus >= step;
-    return isPassedOrCurrent ? 'text-slate-900 font-semibold' : 'text-slate-400';
+  stepTextClass(currentStatus: OrderStatus, step: 'received' | 'preparing' | 'transit' | 'completed'): string {
+    return this.isStepDone(currentStatus, step) ? 'text-slate-900 font-semibold' : 'text-slate-400';
   }
 
   ratingLabel(stars: number): string {

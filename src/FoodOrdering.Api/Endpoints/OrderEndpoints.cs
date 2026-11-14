@@ -80,6 +80,9 @@ public static class OrderEndpoints
         })
         .RequireStoreRole(StoreRole.Staff);
 
+        // PATCH /api/orders/{publicId}/status
+        // Advances order status (e.g. Preparing -> Ready -> Completed). When completing delivery orders,
+        // validates the customer's 4-digit Delivery PIN and payment settlement.
         group.MapPatch("/{publicId:guid}/status", async (
             Guid publicId,
             UpdateOrderStatusRequest request,
@@ -87,7 +90,28 @@ public static class OrderEndpoints
             IHubContext<OrderHub> hubContext,
             CancellationToken ct) =>
         {
-            var result = await orderService.UpdateStatusAsync(publicId, request.Status, ct);
+            var result = await orderService.UpdateStatusAsync(publicId, request, ct);
+            if (result.Order is not null)
+            {
+                // Push real-time update to store kitchen screen and customer tracking screen
+                await BroadcastOrderEventAsync(hubContext, "OrderUpdated", result, ct);
+            }
+
+            return ToActionResult(result, createdRoute: false);
+        })
+        .RequireStoreRole(StoreRole.Staff);
+
+        // POST /api/orders/{publicId}/assign-driver
+        // Assigns rider name and phone to a delivery order, records DispatchedAtUtc, transitions
+        // status to OutForDelivery, and notifies customer tracking screen via SignalR.
+        group.MapPost("/{publicId:guid}/assign-driver", async (
+            Guid publicId,
+            AssignDriverRequest request,
+            OrderService orderService,
+            IHubContext<OrderHub> hubContext,
+            CancellationToken ct) =>
+        {
+            var result = await orderService.AssignDriverAsync(publicId, request, ct);
             if (result.Order is not null)
             {
                 await BroadcastOrderEventAsync(hubContext, "OrderUpdated", result, ct);

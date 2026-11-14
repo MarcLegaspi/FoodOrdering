@@ -99,6 +99,32 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasMaxLength(500)
             .HasDefaultValue(string.Empty);
 
+        builder.Property(o => o.PaymentMethod)
+            .IsRequired()
+            .HasDefaultValue(PaymentMethod.PayOnDelivery);
+
+        builder.Property(o => o.PaymentStatus)
+            .IsRequired()
+            .HasDefaultValue(PaymentStatus.Pending);
+
+        builder.Property(o => o.CashChangeFor)
+            .HasPrecision(18, 2);
+
+        builder.Property(o => o.DriverName)
+            .HasMaxLength(150);
+
+        builder.Property(o => o.DriverPhone)
+            .HasMaxLength(50);
+
+        builder.Property(o => o.PaymentReference)
+            .HasMaxLength(100);
+
+        builder.Property(o => o.DeliveryPin)
+            .HasMaxLength(10);
+
+        builder.Property(o => o.ProofOfDeliveryImageUrl)
+            .HasMaxLength(500);
+
         builder.HasOne(o => o.Store)
             .WithMany(s => s.Orders)
             .HasForeignKey(o => o.StoreId)

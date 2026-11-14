@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { CartSelectedOption, CartService } from '../../core/cart/cart.service';
-import { Category, MenuItem, OrderReview, OrderType, PromoDiscountType, Store, ValidatePromoResponse } from '../../core/models/api.models';
+import { Category, MenuItem, OrderReview, OrderType, PaymentMethod, PromoDiscountType, Store, ValidatePromoResponse } from '../../core/models/api.models';
 import { FoodOrderingApiService } from '../../core/services/food-ordering-api.service';
 import { TenantService } from '../../core/tenant/tenant.service';
 import { resolveImageUrl } from '../../core/utils/media-url';
@@ -225,14 +225,14 @@ import { resolveImageUrl } from '../../core/utils/media-url';
               <div class="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1 text-xs font-semibold">
                 <button
                   type="button"
-                  (click)="orderType.set(OrderType.Pickup)"
+                  (click)="setOrderType(OrderType.Pickup)"
                   [class]="orderType() === OrderType.Pickup ? 'rounded-md bg-white py-1.5 text-slate-900 shadow-xs' : 'py-1.5 text-slate-500'"
                 >
                   Pickup
                 </button>
                 <button
                   type="button"
-                  (click)="orderType.set(OrderType.Delivery)"
+                  (click)="setOrderType(OrderType.Delivery)"
                   [class]="orderType() === OrderType.Delivery ? 'rounded-md bg-white py-1.5 text-slate-900 shadow-xs' : 'py-1.5 text-slate-500'"
                 >
                   Delivery
@@ -306,6 +306,65 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 placeholder="Order notes (optional)"
                 class="w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-slate-900 focus:outline-none"
               ></textarea>
+
+              <!-- Payment Option Section -->
+              <div class="space-y-2 rounded-lg border border-slate-200 bg-slate-50/70 p-3 text-xs">
+                <label class="block font-semibold text-slate-700">Payment Option</label>
+
+                @if (orderType() === OrderType.Delivery) {
+                  <div class="space-y-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-base">🛵</span>
+                      <div>
+                        <div class="font-bold text-slate-900">Pay on Delivery</div>
+                        <div class="text-[11px] text-slate-500 font-normal">Pay cash or scan rider's GCash QR upon delivery</div>
+                      </div>
+                    </div>
+                    <div class="pt-2 border-t border-slate-200">
+                      <label class="block text-[11px] text-slate-500 mb-1">Paying with cash? (Optional)</label>
+                      <input
+                        type="number"
+                        [(ngModel)]="cashChangeFor"
+                        placeholder="Need change for e.g. 500, 1000"
+                        class="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-slate-900 focus:outline-none"
+                      />
+                      @if (cashChangeFor && cashChangeFor > finalOrderTotal()) {
+                        <p class="mt-1 text-[11px] text-emerald-700 font-medium">
+                          Rider will bring {{ (cashChangeFor - finalOrderTotal()) | currency }} change.
+                        </p>
+                      }
+                    </div>
+                  </div>
+                } @else {
+                  <div class="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      (click)="selectedPaymentMethod.set(PaymentMethod.GCashOnline)"
+                      class="flex flex-col items-start rounded-lg border p-2 text-left transition"
+                      [class]="selectedPaymentMethod() === PaymentMethod.GCashOnline
+                        ? 'border-blue-600 bg-blue-50/70 text-blue-900'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
+                    >
+                      <span class="text-base">📱</span>
+                      <span class="font-bold text-xs mt-0.5">GCash Online</span>
+                      <span class="text-[10px] text-blue-700 mt-0.5">Priority express pickup</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      (click)="selectedPaymentMethod.set(PaymentMethod.PayAtCounter)"
+                      class="flex flex-col items-start rounded-lg border p-2 text-left transition"
+                      [class]="selectedPaymentMethod() === PaymentMethod.PayAtCounter
+                        ? 'border-slate-900 bg-slate-900 text-white'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
+                    >
+                      <span class="text-base">🏪</span>
+                      <span class="font-bold text-xs mt-0.5">Pay at Counter</span>
+                      <span class="text-[10px] text-slate-400 mt-0.5">Cash or GCash at store</span>
+                    </button>
+                  </div>
+                }
+              </div>
 
               <!-- Promo Code Section -->
               <div class="border-t border-slate-200 pt-3">
@@ -561,8 +620,11 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
   readonly selectedCategoryId = signal<string | null>(null);
   readonly searchQuery = signal('');
   readonly OrderType = OrderType;
+  readonly PaymentMethod = PaymentMethod;
   readonly imageUrl = resolveImageUrl;
   readonly orderType = signal<OrderType>(OrderType.Pickup);
+  readonly selectedPaymentMethod = signal<PaymentMethod>(PaymentMethod.PayAtCounter);
+  cashChangeFor: number | null = null;
   readonly customizingItem = signal<MenuItem | null>(null);
   readonly selectedOptionsByGroup = signal<Record<string, string[]>>({});
   readonly recentGuestOrderId = signal<string | null>(null);
@@ -792,6 +854,20 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
     this.promoError.set(null);
   }
 
+  /**
+   * Switches order between Delivery and Pickup, setting sensible default payment options:
+   * - Delivery: defaults to PayOnDelivery (Cash or GCash QR to rider).
+   * - Pickup: defaults to GCashOnline (express pre-paid order).
+   */
+  setOrderType(type: OrderType): void {
+    this.orderType.set(type);
+    if (type === OrderType.Delivery) {
+      this.selectedPaymentMethod.set(PaymentMethod.PayOnDelivery);
+    } else {
+      this.selectedPaymentMethod.set(PaymentMethod.GCashOnline);
+    }
+  }
+
   openReviewsModal(): void {
     const slug = this.store()?.slug;
     if (!slug) {
@@ -858,7 +934,9 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
         deliveryAddress: this.orderType() === OrderType.Delivery ? address : null,
         deliveryLandmark: this.orderType() === OrderType.Delivery ? (this.deliveryLandmark.trim() || null) : null,
         promoCode: this.appliedPromo()?.code ?? null,
-        notes: this.notes
+        notes: this.notes,
+        paymentMethod: this.orderType() === OrderType.Delivery ? PaymentMethod.PayOnDelivery : this.selectedPaymentMethod(),
+        cashChangeFor: this.orderType() === OrderType.Delivery && this.cashChangeFor ? Number(this.cashChangeFor) : null
       })
       .subscribe({
         next: (createdOrder) => {

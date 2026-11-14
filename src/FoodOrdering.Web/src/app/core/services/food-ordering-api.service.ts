@@ -11,6 +11,7 @@ import {
   Order,
   OrderReview,
   OrderStatus,
+  PaymentCollectionMethod,
   PlaceOrderRequest,
   PromoCode,
   CreatePromoCodeRequest,
@@ -121,8 +122,30 @@ export class FoodOrderingApiService {
     return this.http.get<Order[]>(`${this.api}/orders`, { params });
   }
 
-  updateOrderStatus(publicId: string, status: OrderStatus): Observable<Order> {
-    return this.http.patch<Order>(`${this.api}/orders/${publicId}/status`, { status });
+  /**
+   * Advances order status. When completing delivery orders, requires deliveryPin and paymentCollectedVia.
+   */
+  updateOrderStatus(
+    publicId: string,
+    status: OrderStatus,
+    paymentCollectedVia?: PaymentCollectionMethod | null,
+    deliveryPin?: string | null
+  ): Observable<Order> {
+    return this.http.patch<Order>(`${this.api}/orders/${publicId}/status`, {
+      status,
+      paymentCollectedVia,
+      deliveryPin
+    });
+  }
+
+  /**
+   * Assigns rider name and phone to a delivery order, records dispatch time, and sets status to OutForDelivery.
+   */
+  assignDriver(publicId: string, driverName: string, driverPhone: string): Observable<Order> {
+    return this.http.post<Order>(`${this.api}/orders/${publicId}/assign-driver`, {
+      driverName,
+      driverPhone
+    });
   }
 
   // Promos

@@ -10,7 +10,32 @@ export enum OrderStatus {
   Preparing = 3,
   Ready = 4,
   Completed = 5,
-  Cancelled = 6
+  Cancelled = 6,
+  /** Rider assigned and dispatched; out for delivery to customer */
+  OutForDelivery = 7
+}
+
+/** Payment option chosen by the customer */
+export enum PaymentMethod {
+  /** Pay rider upon arrival with cash or rider's GCash QR */
+  PayOnDelivery = 1,
+  /** Pre-paid online via GCash for express priority pickup */
+  GCashOnline = 2,
+  /** Pay at cashier counter upon pickup */
+  PayAtCounter = 3
+}
+
+/** Payment lifecycle status */
+export enum PaymentStatus {
+  Pending = 1,
+  Paid = 2,
+  Failed = 3
+}
+
+/** Actual method rider collected payment on delivery */
+export enum PaymentCollectionMethod {
+  Cash = 1,
+  GCash = 2
 }
 
 export enum OrderType {
@@ -189,6 +214,18 @@ export interface Order {
   totalAmount: number;
   estimatedDeliveryTime?: string;
   notes: string;
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
+  cashChangeFor?: number | null;
+  driverName?: string | null;
+  driverPhone?: string | null;
+  dispatchedAtUtc?: string | null;
+  deliveredAtUtc?: string | null;
+  paymentCollectedVia?: PaymentCollectionMethod | null;
+  paidAtUtc?: string | null;
+  paymentReference?: string | null;
+  deliveryPin?: string | null;
+  proofOfDeliveryImageUrl?: string | null;
   createdAtUtc: string;
   items: OrderItem[];
   review?: OrderReview | null;
@@ -204,6 +241,19 @@ export interface PlaceOrderRequest {
   deliveryLandmark?: string | null;
   promoCode?: string | null;
   notes?: string | null;
+  paymentMethod?: PaymentMethod;
+  cashChangeFor?: number | null;
+}
+
+export interface AssignDriverRequest {
+  driverName: string;
+  driverPhone: string;
+}
+
+export interface UpdateOrderStatusRequest {
+  status: OrderStatus;
+  paymentCollectedVia?: PaymentCollectionMethod | null;
+  deliveryPin?: string | null;
 }
 
 export interface PromoCode {
@@ -286,6 +336,8 @@ export function orderStatusLabel(status: OrderStatus): string {
       return 'Preparing';
     case OrderStatus.Ready:
       return 'Ready';
+    case OrderStatus.OutForDelivery:
+      return 'Out for Delivery';
     case OrderStatus.Completed:
       return 'Completed';
     case OrderStatus.Cancelled:
