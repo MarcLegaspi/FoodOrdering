@@ -100,6 +100,69 @@ public sealed class DeliveryAndPaymentTests
         Assert.Equal("https://checkout.xendit.co/web/inv_test_123", result.Order.CheckoutUrl);
     }
 
+    [Fact]
+    public async Task PlaceOrder_GCashManual_WithValidLast4_Sets_Pending_And_Formatted_Reference()
+    {
+        var tenant = new TestTenantContext(storeId: 1);
+        await using var db = TestDbFactory.Create(tenant);
+        var (store, _) = await TestDbFactory.SeedTwoStoresAsync(db);
+
+        var user = new TestCurrentUser(Guid.NewGuid(), isAuthenticated: true, "Customer");
+        var orderService = new OrderService(db, tenant, user);
+
+        var category = (await new CategoryService(db, tenant)
+            .CreateAsync(new CreateCategoryRequest("Food", 1))).Category!;
+        var item = (await new MenuItemService(db, tenant)
+            .CreateAsync(new CreateMenuItemRequest(category.PublicId, "Salad", "Healthy", 20m))).Item!;
+
+        var result = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(item.PublicId, 1)],
+            OrderType.Delivery,
+            CustomerPhone: "09171112222",
+            DeliveryAddress: "123 Main St",
+            PaymentMethod: PaymentMethod.GCashManual,
+            PaymentRefLast4: "5821"));
+
+        Assert.NotNull(result.Order);
+        Assert.Equal(PaymentMethod.GCashManual, result.Order.PaymentMethod);
+        Assert.Equal(PaymentStatus.Pending, result.Order.PaymentStatus);
+        Assert.Null(result.Order.PaidAtUtc);
+        Assert.Equal("GCASH-****5821", result.Order.PaymentReference);
+
+        // Staff verification
+        var verifiedResult = await orderService.VerifyPaymentAsync(result.Order.PublicId);
+        Assert.NotNull(verifiedResult.Order);
+        Assert.Equal(PaymentStatus.Paid, verifiedResult.Order.PaymentStatus);
+        Assert.NotNull(verifiedResult.Order.PaidAtUtc);
+    }
+
+    [Fact]
+    public async Task PlaceOrder_GCashManual_InvalidDigits_Returns_ValidationError()
+    {
+        var tenant = new TestTenantContext(storeId: 1);
+        await using var db = TestDbFactory.Create(tenant);
+        var (store, _) = await TestDbFactory.SeedTwoStoresAsync(db);
+
+        var user = new TestCurrentUser(Guid.NewGuid(), isAuthenticated: true, "Customer");
+        var orderService = new OrderService(db, tenant, user);
+
+        var category = (await new CategoryService(db, tenant)
+            .CreateAsync(new CreateCategoryRequest("Food", 1))).Category!;
+        var item = (await new MenuItemService(db, tenant)
+            .CreateAsync(new CreateMenuItemRequest(category.PublicId, "Salad", "Healthy", 20m))).Item!;
+
+        var result = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(item.PublicId, 1)],
+            OrderType.Pickup,
+            CustomerPhone: "09171112222",
+            PaymentMethod: PaymentMethod.GCashManual,
+            PaymentRefLast4: "ABC")); // Invalid: not 4 digits
+
+        Assert.Null(result.Order);
+        Assert.NotNull(result.Error);
+        Assert.Contains("last 4 digits", result.Error);
+    }
+
     private sealed class FakePaymentGatewayService(bool isConfigured, CreatePaymentInvoiceResult? stubResult) : IPaymentGatewayService
     {
         public bool IsConfigured => isConfigured;

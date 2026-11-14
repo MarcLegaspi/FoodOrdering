@@ -22,7 +22,9 @@ export enum PaymentMethod {
   /** Pre-paid online via GCash for express priority pickup */
   GCashOnline = 2,
   /** Pay at cashier counter upon pickup */
-  PayAtCounter = 3
+  PayAtCounter = 3,
+  /** Direct GCash transfer to store's account with last 4 digits of reference number */
+  GCashManual = 4
 }
 
 /** Payment lifecycle status */
@@ -244,6 +246,7 @@ export interface PlaceOrderRequest {
   notes?: string | null;
   paymentMethod?: PaymentMethod;
   cashChangeFor?: number | null;
+  paymentRefLast4?: string | null;
 }
 
 export interface AssignDriverRequest {

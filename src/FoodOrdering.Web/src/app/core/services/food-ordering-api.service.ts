@@ -148,6 +148,13 @@ export class FoodOrderingApiService {
     });
   }
 
+  /**
+   * Allows store staff to verify and approve manual GCash payments matching the customer's last 4 reference digits.
+   */
+  verifyPayment(publicId: string): Observable<Order> {
+    return this.http.post<Order>(`${this.api}/orders/${publicId}/verify-payment`, {});
+  }
+
   // Promos
   validatePromo(code: string, subtotal: number): Observable<ValidatePromoResponse> {
     return this.http.post<ValidatePromoResponse>(`${this.api}/promos/validate`, { code, subtotal });

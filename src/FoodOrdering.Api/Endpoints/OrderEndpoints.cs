@@ -121,6 +121,24 @@ public static class OrderEndpoints
         })
         .RequireStoreRole(StoreRole.Staff);
 
+        // POST /api/orders/{publicId}/verify-payment
+        // Allows staff to verify and approve manual GCash payments (matching the customer's last 4 digits).
+        group.MapPost("/{publicId:guid}/verify-payment", async (
+            Guid publicId,
+            OrderService orderService,
+            IHubContext<OrderHub> hubContext,
+            CancellationToken ct) =>
+        {
+            var result = await orderService.VerifyPaymentAsync(publicId, ct);
+            if (result.Order is not null)
+            {
+                await BroadcastOrderEventAsync(hubContext, "OrderUpdated", result, ct);
+            }
+
+            return ToActionResult(result, createdRoute: false);
+        })
+        .RequireStoreRole(StoreRole.Staff);
+
         return app;
     }
 

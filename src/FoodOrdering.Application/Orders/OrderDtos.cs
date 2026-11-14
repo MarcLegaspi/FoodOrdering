@@ -22,7 +22,8 @@ public sealed record PlaceOrderRequest(
     string? DeliveryLandmark = null,
     string? PromoCode = null,
     PaymentMethod PaymentMethod = PaymentMethod.PayOnDelivery,
-    decimal? CashChangeFor = null);
+    decimal? CashChangeFor = null,
+    string? PaymentRefLast4 = null);
 
 /// <summary>
 /// Payload for store staff to transition order status.

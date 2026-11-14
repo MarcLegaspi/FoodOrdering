@@ -313,6 +313,17 @@ public sealed class OrderService(
                 paymentReference = $"GCASH-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
             }
         }
+        else if (paymentMethod == PaymentMethod.GCashManual)
+        {
+            var last4 = request.PaymentRefLast4?.Trim();
+            if (string.IsNullOrWhiteSpace(last4) || last4.Length != 4 || !last4.All(char.IsDigit))
+            {
+                return OrderResult.ValidationError("Please enter the exact last 4 digits of your GCash reference number.");
+            }
+
+            paymentStatus = PaymentStatus.Pending;
+            paymentReference = $"GCASH-****{last4}";
+        }
 
         var order = new Order
         {
@@ -564,6 +575,29 @@ public sealed class OrderService(
         order.DriverPhone = driverPhone;
         order.Status = OrderStatus.OutForDelivery;
         order.DispatchedAtUtc ??= DateTime.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+        return OrderResult.Success(ToResponse(order), order.CustomerUserId);
+    }
+
+    public async Task<OrderResult> VerifyPaymentAsync(Guid publicId, CancellationToken ct = default)
+    {
+        var order = await db.Orders
+            .Include(o => o.Store)
+            .Include(o => o.Review)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.MenuItem)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.Options)
+            .FirstOrDefaultAsync(o => o.PublicId == publicId, ct);
+
+        if (order is null)
+        {
+            return OrderResult.NotFound("Order was not found for this store.");
+        }
+
+        order.PaymentStatus = PaymentStatus.Paid;
+        order.PaidAtUtc ??= DateTime.UtcNow;
 
         await db.SaveChangesAsync(ct);
         return OrderResult.Success(ToResponse(order), order.CustomerUserId);

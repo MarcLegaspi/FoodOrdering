@@ -312,7 +312,7 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                 <label class="block font-semibold text-slate-700">Payment Option</label>
 
                 @if (orderType() === OrderType.Delivery) {
-                  <div class="grid grid-cols-2 gap-2">
+                  <div class="grid grid-cols-3 gap-1.5">
                     <button
                       type="button"
                       (click)="selectedPaymentMethod.set(PaymentMethod.PayOnDelivery)"
@@ -322,8 +322,21 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
                     >
                       <span class="text-base">🛵</span>
-                      <span class="font-bold text-xs mt-0.5">Pay on Delivery</span>
-                      <span class="text-[10px] mt-0.5" [class]="selectedPaymentMethod() === PaymentMethod.PayOnDelivery ? 'text-slate-300' : 'text-slate-500'">Cash or Rider's QR</span>
+                      <span class="font-bold text-[11px] mt-0.5 leading-tight">Pay on Delivery</span>
+                      <span class="text-[9px] mt-0.5 leading-tight" [class]="selectedPaymentMethod() === PaymentMethod.PayOnDelivery ? 'text-slate-300' : 'text-slate-500'">Cash / Rider QR</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      (click)="selectedPaymentMethod.set(PaymentMethod.GCashManual)"
+                      class="flex flex-col items-start rounded-lg border p-2 text-left transition"
+                      [class]="selectedPaymentMethod() === PaymentMethod.GCashManual
+                        ? 'border-emerald-700 bg-emerald-700 text-white shadow-xs'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
+                    >
+                      <span class="text-base">💸</span>
+                      <span class="font-bold text-[11px] mt-0.5 leading-tight">GCash Transfer</span>
+                      <span class="text-[9px] mt-0.5 leading-tight" [class]="selectedPaymentMethod() === PaymentMethod.GCashManual ? 'text-emerald-200' : 'text-emerald-700 font-semibold'">0% Fee · Last 4</span>
                     </button>
 
                     <button
@@ -331,12 +344,12 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                       (click)="selectedPaymentMethod.set(PaymentMethod.GCashOnline)"
                       class="flex flex-col items-start rounded-lg border p-2 text-left transition"
                       [class]="selectedPaymentMethod() === PaymentMethod.GCashOnline
-                        ? 'border-blue-600 bg-blue-50/70 text-blue-900'
+                        ? 'border-blue-600 bg-blue-50/80 text-blue-900 ring-1 ring-blue-600'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
                     >
                       <span class="text-base">📱</span>
-                      <span class="font-bold text-xs mt-0.5">GCash Online</span>
-                      <span class="text-[10px] text-blue-700 mt-0.5">Pre-paid upfront</span>
+                      <span class="font-bold text-[11px] mt-0.5 leading-tight">GCash Online</span>
+                      <span class="text-[9px] text-blue-700 mt-0.5 leading-tight">Auto Gateway</span>
                     </button>
                   </div>
 
@@ -355,24 +368,79 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                         </p>
                       }
                     </div>
+                  } @else if (selectedPaymentMethod() === PaymentMethod.GCashManual) {
+                    <div class="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 text-xs space-y-2 mt-2">
+                      <div class="flex items-center justify-between">
+                        <span class="font-bold text-emerald-900 flex items-center gap-1">
+                          <span>💸</span> Direct GCash Transfer
+                        </span>
+                        <span class="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">0% Fee</span>
+                      </div>
+                      <div class="rounded-md bg-white p-2.5 border border-emerald-100 space-y-1">
+                        <div class="flex items-center justify-between text-[11px]">
+                          <span class="text-slate-500">Send to GCash:</span>
+                          <span class="font-bold font-mono text-slate-900 select-all">{{ activeStore.phone || 'Store GCash' }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px]">
+                          <span class="text-slate-500">Account Name:</span>
+                          <span class="font-semibold text-slate-800">{{ activeStore.name }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px] border-t border-slate-100 pt-1">
+                          <span class="text-slate-500">Amount:</span>
+                          <span class="font-bold text-emerald-700">{{ finalOrderTotal() | currency }}</span>
+                        </div>
+                      </div>
+                      <div class="space-y-1 pt-1">
+                        <label class="block text-[11px] font-semibold text-slate-800">
+                          Last 4 digits of GCash Reference No. <span class="text-red-500">*</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                          <span class="text-slate-400 font-mono text-xs">Ref: •••••••••</span>
+                          <input
+                            type="text"
+                            [(ngModel)]="paymentRefLast4"
+                            maxlength="4"
+                            inputmode="numeric"
+                            placeholder="e.g. 5821"
+                            class="w-24 rounded border border-slate-300 bg-white px-2 py-1.5 text-center font-mono text-sm font-bold tracking-widest text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:outline-none"
+                          />
+                        </div>
+                        <p class="text-[10px] text-slate-500">
+                          From your GCash SMS or payment receipt (e.g. Ref No. 102938472<strong>5821</strong>).
+                        </p>
+                      </div>
+                    </div>
                   } @else {
                     <div class="rounded-md bg-blue-50 p-2 text-[11px] text-blue-800 border border-blue-200">
-                      ⚡ <strong>Pre-paid Delivery:</strong> Pre-paid via GCash. No payment needed at doorstep—just give your 4-digit PIN to the rider!
+                      ⚡ <strong>Pre-paid Delivery:</strong> Pre-paid via GCash gateway. No payment needed at doorstep—just give your 4-digit PIN to the rider!
                     </div>
                   }
                 } @else {
-                  <div class="grid grid-cols-2 gap-2">
+                  <div class="grid grid-cols-3 gap-1.5">
+                    <button
+                      type="button"
+                      (click)="selectedPaymentMethod.set(PaymentMethod.GCashManual)"
+                      class="flex flex-col items-start rounded-lg border p-2 text-left transition"
+                      [class]="selectedPaymentMethod() === PaymentMethod.GCashManual
+                        ? 'border-emerald-700 bg-emerald-700 text-white shadow-xs'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
+                    >
+                      <span class="text-base">💸</span>
+                      <span class="font-bold text-[11px] mt-0.5 leading-tight">GCash Transfer</span>
+                      <span class="text-[9px] mt-0.5 leading-tight" [class]="selectedPaymentMethod() === PaymentMethod.GCashManual ? 'text-emerald-200' : 'text-emerald-700 font-semibold'">0% Fee · Last 4</span>
+                    </button>
+
                     <button
                       type="button"
                       (click)="selectedPaymentMethod.set(PaymentMethod.GCashOnline)"
                       class="flex flex-col items-start rounded-lg border p-2 text-left transition"
                       [class]="selectedPaymentMethod() === PaymentMethod.GCashOnline
-                        ? 'border-blue-600 bg-blue-50/70 text-blue-900'
+                        ? 'border-blue-600 bg-blue-50/80 text-blue-900 ring-1 ring-blue-600'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
                     >
                       <span class="text-base">📱</span>
-                      <span class="font-bold text-xs mt-0.5">GCash Online</span>
-                      <span class="text-[10px] text-blue-700 mt-0.5">Priority express pickup</span>
+                      <span class="font-bold text-[11px] mt-0.5 leading-tight">GCash Online</span>
+                      <span class="text-[9px] text-blue-700 mt-0.5 leading-tight">Auto Gateway</span>
                     </button>
 
                     <button
@@ -384,10 +452,58 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
                     >
                       <span class="text-base">🏪</span>
-                      <span class="font-bold text-xs mt-0.5">Pay at Counter</span>
-                      <span class="text-[10px] text-slate-400 mt-0.5">Cash or GCash at store</span>
+                      <span class="font-bold text-[11px] mt-0.5 leading-tight">Pay at Counter</span>
+                      <span class="text-[9px] text-slate-400 mt-0.5 leading-tight">Cash at store</span>
                     </button>
                   </div>
+
+                  @if (selectedPaymentMethod() === PaymentMethod.GCashManual) {
+                    <div class="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 text-xs space-y-2 mt-2">
+                      <div class="flex items-center justify-between">
+                        <span class="font-bold text-emerald-900 flex items-center gap-1">
+                          <span>💸</span> Direct GCash Transfer
+                        </span>
+                        <span class="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">0% Fee</span>
+                      </div>
+                      <div class="rounded-md bg-white p-2.5 border border-emerald-100 space-y-1">
+                        <div class="flex items-center justify-between text-[11px]">
+                          <span class="text-slate-500">Send to GCash:</span>
+                          <span class="font-bold font-mono text-slate-900 select-all">{{ activeStore.phone || 'Store GCash' }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px]">
+                          <span class="text-slate-500">Account Name:</span>
+                          <span class="font-semibold text-slate-800">{{ activeStore.name }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px] border-t border-slate-100 pt-1">
+                          <span class="text-slate-500">Amount:</span>
+                          <span class="font-bold text-emerald-700">{{ finalOrderTotal() | currency }}</span>
+                        </div>
+                      </div>
+                      <div class="space-y-1 pt-1">
+                        <label class="block text-[11px] font-semibold text-slate-800">
+                          Last 4 digits of GCash Reference No. <span class="text-red-500">*</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                          <span class="text-slate-400 font-mono text-xs">Ref: •••••••••</span>
+                          <input
+                            type="text"
+                            [(ngModel)]="paymentRefLast4"
+                            maxlength="4"
+                            inputmode="numeric"
+                            placeholder="e.g. 5821"
+                            class="w-24 rounded border border-slate-300 bg-white px-2 py-1.5 text-center font-mono text-sm font-bold tracking-widest text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:outline-none"
+                          />
+                        </div>
+                        <p class="text-[10px] text-slate-500">
+                          From your GCash SMS or payment receipt (e.g. Ref No. 102938472<strong>5821</strong>).
+                        </p>
+                      </div>
+                    </div>
+                  } @else if (selectedPaymentMethod() === PaymentMethod.GCashOnline) {
+                    <div class="rounded-md bg-blue-50 p-2 text-[11px] text-blue-800 border border-blue-200 mt-2">
+                      ⚡ <strong>Express Pickup:</strong> Pre-paid via GCash gateway. Just show your order number at the counter!
+                    </div>
+                  }
                 }
               </div>
 
@@ -666,6 +782,7 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
   deliveryAddress = '';
   deliveryLandmark = '';
   notes = '';
+  paymentRefLast4 = '';
 
   readonly currentDeliveryFee = computed(() => {
     const st = this.store();
@@ -943,6 +1060,14 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
       }
     }
 
+    if (this.selectedPaymentMethod() === PaymentMethod.GCashManual) {
+      const last4 = this.paymentRefLast4.trim();
+      if (!last4 || last4.length !== 4 || !/^\d{4}$/.test(last4)) {
+        this.orderError.set('Please enter the exact last 4 digits of your GCash payment reference number.');
+        return;
+      }
+    }
+
     this.submitting.set(true);
 
     this.api
@@ -961,7 +1086,8 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
         promoCode: this.appliedPromo()?.code ?? null,
         notes: this.notes,
         paymentMethod: this.selectedPaymentMethod(),
-        cashChangeFor: this.orderType() === OrderType.Delivery && this.selectedPaymentMethod() === PaymentMethod.PayOnDelivery && this.cashChangeFor ? Number(this.cashChangeFor) : null
+        cashChangeFor: this.orderType() === OrderType.Delivery && this.selectedPaymentMethod() === PaymentMethod.PayOnDelivery && this.cashChangeFor ? Number(this.cashChangeFor) : null,
+        paymentRefLast4: this.selectedPaymentMethod() === PaymentMethod.GCashManual ? this.paymentRefLast4.trim() : null
       })
       .subscribe({
         next: (createdOrder) => {
@@ -969,6 +1095,7 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
           this.cart.clear();
           this.removePromo();
           this.notes = '';
+          this.paymentRefLast4 = '';
 
           if (createdOrder.checkoutUrl) {
             if (isGuest) {

@@ -41,6 +41,16 @@ import { OrderLiveService } from '../../core/services/order-live.service';
             >
               {{ banner }}
             </div>
+          } @else if (o.paymentMethod === PaymentMethod.GCashManual) {
+            @if (o.paymentStatus === PaymentStatus.Paid) {
+              <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center text-sm font-semibold text-emerald-900 shadow-xs">
+                🎉 GCash payment verified! Kitchen is preparing your order.
+              </div>
+            } @else {
+              <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center text-sm font-semibold text-amber-900 shadow-xs">
+                ⏳ GCash transfer received (Ref ending in {{ o.paymentReference || '...' }}). Our kitchen staff will verify your payment and start cooking shortly.
+              </div>
+            }
           }
 
           <!-- Header Banner -->
@@ -229,7 +239,15 @@ import { OrderLiveService } from '../../core/services/order-live.service';
                 } @else if (o.paymentMethod === PaymentMethod.GCashOnline) {
                   <p class="font-semibold text-blue-900">📱 GCash Online</p>
                   <p class="text-xs text-slate-600">Ref: {{ o.paymentReference || 'GCASH' }}</p>
-                  <p class="text-[11px] text-blue-700 font-medium">⚡ Priority express pickup</p>
+                  <p class="text-[11px] text-blue-700 font-medium">⚡ Priority express pre-paid</p>
+                } @else if (o.paymentMethod === PaymentMethod.GCashManual) {
+                  <p class="font-semibold text-emerald-900">💸 GCash Transfer</p>
+                  <p class="text-xs text-slate-600">Ref ending in: {{ o.paymentReference || 'Pending' }}</p>
+                  @if (o.paymentStatus === PaymentStatus.Paid) {
+                    <p class="text-[11px] text-emerald-700 font-medium">✓ Payment verified by store</p>
+                  } @else {
+                    <p class="text-[11px] text-amber-700 font-medium">⏳ Staff verifying transfer</p>
+                  }
                 } @else {
                   <p class="font-semibold text-slate-800">🏪 Pay at Counter</p>
                   <p class="text-xs text-slate-600">Pay when picking up order</p>

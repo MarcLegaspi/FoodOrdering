@@ -192,6 +192,10 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                     <span class="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-bold text-blue-800">
                       📱 Pre-paid GCash
                     </span>
+                  } @else if (order.paymentMethod === PaymentMethod.GCashManual) {
+                    <span class="rounded-full bg-emerald-50 border border-emerald-300 px-2 py-0.5 text-xs font-bold text-emerald-800">
+                      💸 GCash ({{ order.paymentReference || 'Manual' }})
+                    </span>
                   } @else if (order.paymentMethod === PaymentMethod.PayAtCounter) {
                     <span class="rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
                       🏪 Pay at Counter
@@ -310,6 +314,16 @@ import { resolveImageUrl } from '../../core/utils/media-url';
 
               @if (order.status !== OrderStatus.Completed && order.status !== OrderStatus.Cancelled) {
                 <div class="mt-4 flex flex-wrap gap-2">
+                  @if (order.paymentMethod === PaymentMethod.GCashManual && order.paymentStatus !== PaymentStatus.Paid) {
+                    <button
+                      type="button"
+                      (click)="verifyGcashPayment(order.publicId)"
+                      class="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 flex items-center gap-1 shadow-xs"
+                      title="Verify GCash Reference and mark as Paid"
+                    >
+                      <span>✓</span> Verify GCash ({{ order.paymentReference || 'Last 4' }})
+                    </button>
+                  }
                   @if (order.status === OrderStatus.Pending) {
                     <button
                       type="button"
@@ -1555,6 +1569,17 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     this.api.updateOrderStatus(publicId, status).subscribe({
       next: () => this.refreshOrders(),
       error: (err) => this.setError(err, 'Could not update order status.')
+    });
+  }
+
+  verifyGcashPayment(publicId: string): void {
+    this.clearAlerts();
+    this.api.verifyPayment(publicId).subscribe({
+      next: (updated) => {
+        this.message.set(`GCash payment verified for Order #${updated.orderNumber}.`);
+        this.refreshOrders();
+      },
+      error: (err) => this.setError(err, 'Could not verify GCash payment.')
     });
   }
 
