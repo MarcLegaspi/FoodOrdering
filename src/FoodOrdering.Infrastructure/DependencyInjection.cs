@@ -106,7 +106,29 @@ public static class DependencyInjection
             return sp.GetRequiredService<LocalFileImageStorageService>();
         });
 
-        services.Configure<XenditOptions>(configuration.GetSection(XenditOptions.SectionName));
+        services.Configure<XenditOptions>(options =>
+        {
+            configuration.GetSection(XenditOptions.SectionName).Bind(options);
+
+            options.SecretKey ??= configuration["Xendit:SecretKey"]
+                               ?? configuration["Xendit__SecretKey"]
+                               ?? configuration["XENDIT_SECRET_KEY"]
+                               ?? configuration["XENDIT_API_KEY"]
+                               ?? Environment.GetEnvironmentVariable("XENDIT_SECRET_KEY")
+                               ?? Environment.GetEnvironmentVariable("Xendit__SecretKey")
+                               ?? Environment.GetEnvironmentVariable("XENDIT_API_KEY");
+
+            options.WebhookToken ??= configuration["Xendit:WebhookToken"]
+                                  ?? configuration["Xendit__WebhookToken"]
+                                  ?? configuration["XENDIT_WEBHOOK_TOKEN"]
+                                  ?? Environment.GetEnvironmentVariable("XENDIT_WEBHOOK_TOKEN");
+
+            options.WebBaseUrl ??= configuration["Xendit:WebBaseUrl"]
+                                ?? configuration["Xendit__WebBaseUrl"]
+                                ?? configuration["XENDIT_WEB_BASE_URL"]
+                                ?? Environment.GetEnvironmentVariable("XENDIT_WEB_BASE_URL")
+                                ?? "https://food-ordering-web.pages.dev";
+        });
         services.AddHttpClient<IPaymentGatewayService, XenditPaymentGatewayService>();
 
         return services;

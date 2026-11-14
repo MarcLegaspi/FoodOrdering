@@ -44,7 +44,9 @@ public sealed class XenditPaymentGatewayService(
             external_id = orderNumber,
             amount = amount,
             description = $"Payment for Order #{orderNumber} at {storeName}",
-            payer_email = !string.IsNullOrWhiteSpace(customerEmail) ? customerEmail.Trim() : "customer@foodordering.local",
+            payer_email = !string.IsNullOrWhiteSpace(customerEmail) && customerEmail.Contains('@')
+                ? customerEmail.Trim()
+                : "customer@foodordering.com",
             currency = "PHP",
             payment_methods = new[] { "GCASH", "PAYMAYA" },
             customer = new

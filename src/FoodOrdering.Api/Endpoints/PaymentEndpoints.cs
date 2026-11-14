@@ -4,8 +4,10 @@ using FoodOrdering.Api.Hubs;
 using FoodOrdering.Application.Orders;
 using FoodOrdering.Domain.Orders;
 using FoodOrdering.Infrastructure.Database;
+using FoodOrdering.Infrastructure.Payments;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace FoodOrdering.Api.Endpoints;
 
@@ -15,6 +17,35 @@ public static class PaymentEndpoints
     {
         var group = app.MapGroup("/api/payments")
             .WithTags("Payments");
+
+        // Public diagnostic status endpoint to verify payment gateway configuration
+        group.MapGet("/status", (IOptions<XenditOptions> xenditOpts) =>
+        {
+            var key = xenditOpts.Value.SecretKey?.Trim();
+            var isConfigured = !string.IsNullOrWhiteSpace(key);
+            string maskedKey;
+            if (isConfigured && key != null)
+            {
+                var takeStart = Math.Min(8, key.Length);
+                var takeEnd = Math.Min(4, key.Length);
+                maskedKey = key.Length > 12
+                    ? $"{key[..takeStart]}...{key[^takeEnd..]}"
+                    : $"{key[..Math.Min(4, key.Length)]}***";
+            }
+            else
+            {
+                maskedKey = "Not Configured";
+            }
+
+            return Results.Ok(new
+            {
+                configured = isConfigured,
+                gateway = "Xendit",
+                keyPreview = maskedKey,
+                webBaseUrl = xenditOpts.Value.WebBaseUrl
+            });
+        })
+        .AllowAnonymous();
 
         // Webhook receiver for Xendit payment updates
         group.MapPost("/xendit-webhook", async (

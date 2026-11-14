@@ -274,11 +274,16 @@ public sealed class OrderService(
         var orderPublicId = Guid.NewGuid();
 
         // GCash Online: If a payment gateway (e.g. Xendit) is configured, create a checkout invoice.
-        // If not configured, fall back to simulated instant payment for local/demo testing.
+        // If no payment gateway is registered (e.g. isolated unit testing), fallback to demo mode.
         if (paymentMethod == PaymentMethod.GCashOnline)
         {
-            if (paymentGateway != null && paymentGateway.IsConfigured)
+            if (paymentGateway != null)
             {
+                if (!paymentGateway.IsConfigured)
+                {
+                    return OrderResult.ValidationError("GCash Online payment is not configured on the server. Please verify your Xendit secret key.");
+                }
+
                 var invoice = await paymentGateway.CreateGcashInvoiceAsync(
                     orderNumber,
                     totalAmount,
@@ -298,9 +303,7 @@ public sealed class OrderService(
                 }
                 else
                 {
-                    paymentStatus = PaymentStatus.Paid;
-                    paidAtUtc = DateTime.UtcNow;
-                    paymentReference = $"GCASH-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+                    return OrderResult.ValidationError("Failed to create GCash checkout session. Please check your contact details or try again.");
                 }
             }
             else
@@ -388,7 +391,8 @@ public sealed class OrderService(
             order.PaidAtUtc,
             order.PaymentReference,
             order.DeliveryPin,
-            order.ProofOfDeliveryImageUrl),
+            order.ProofOfDeliveryImageUrl,
+            order.PaymentCheckoutUrl),
             customerUserId);
     }
 

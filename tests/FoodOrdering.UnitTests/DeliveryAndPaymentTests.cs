@@ -1,4 +1,5 @@
 using FoodOrdering.Application.Catalog;
+using FoodOrdering.Application.Common.Interfaces;
 using FoodOrdering.Application.Orders;
 using FoodOrdering.Domain.Orders;
 using Xunit;
@@ -64,6 +65,58 @@ public sealed class DeliveryAndPaymentTests
         Assert.NotNull(result.Order.PaidAtUtc);
         Assert.NotNull(result.Order.PaymentReference);
         Assert.StartsWith("GCASH-", result.Order.PaymentReference);
+    }
+
+    [Fact]
+    public async Task PlaceOrder_GCashOnline_WithConfiguredGateway_Sets_Pending_And_Returns_CheckoutUrl()
+    {
+        var tenant = new TestTenantContext(storeId: 1);
+        await using var db = TestDbFactory.Create(tenant);
+        var (store, _) = await TestDbFactory.SeedTwoStoresAsync(db);
+
+        var user = new TestCurrentUser(Guid.NewGuid(), isAuthenticated: true, "Customer");
+        var fakeGateway = new FakePaymentGatewayService(
+            isConfigured: true,
+            stubResult: new CreatePaymentInvoiceResult("inv_test_123", "https://checkout.xendit.co/web/inv_test_123"));
+
+        var orderService = new OrderService(db, tenant, user, fakeGateway);
+
+        var category = (await new CategoryService(db, tenant)
+            .CreateAsync(new CreateCategoryRequest("Food", 1))).Category!;
+        var item = (await new MenuItemService(db, tenant)
+            .CreateAsync(new CreateMenuItemRequest(category.PublicId, "Salad", "Healthy", 20m))).Item!;
+
+        var result = await orderService.PlaceOrderAsync(new PlaceOrderRequest(
+            [new OrderItemInput(item.PublicId, 1)],
+            OrderType.Pickup,
+            CustomerPhone: "09171112222",
+            PaymentMethod: PaymentMethod.GCashOnline));
+
+        Assert.NotNull(result.Order);
+        Assert.Equal(PaymentMethod.GCashOnline, result.Order.PaymentMethod);
+        Assert.Equal(PaymentStatus.Pending, result.Order.PaymentStatus);
+        Assert.Null(result.Order.PaidAtUtc);
+        Assert.Equal("inv_test_123", result.Order.PaymentReference);
+        Assert.Equal("https://checkout.xendit.co/web/inv_test_123", result.Order.CheckoutUrl);
+    }
+
+    private sealed class FakePaymentGatewayService(bool isConfigured, CreatePaymentInvoiceResult? stubResult) : IPaymentGatewayService
+    {
+        public bool IsConfigured => isConfigured;
+
+        public Task<CreatePaymentInvoiceResult?> CreateGcashInvoiceAsync(
+            string orderNumber,
+            decimal amount,
+            string storeSlug,
+            string storeName,
+            Guid orderPublicId,
+            string customerName,
+            string customerPhone,
+            string? customerEmail,
+            CancellationToken ct = default)
+        {
+            return Task.FromResult(stubResult);
+        }
     }
 
     [Fact]
