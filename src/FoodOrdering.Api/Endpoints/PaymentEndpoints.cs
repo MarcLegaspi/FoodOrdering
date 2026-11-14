@@ -47,6 +47,29 @@ public static class PaymentEndpoints
         })
         .AllowAnonymous();
 
+        group.MapGet("/recent-orders", async (AppDbContext db, CancellationToken ct) =>
+        {
+            var orders = await db.Orders
+                .IgnoreQueryFilters()
+                .OrderByDescending(o => o.CreatedAtUtc)
+                .Take(5)
+                .Select(o => new
+                {
+                    o.OrderNumber,
+                    o.CustomerName,
+                    o.PaymentMethod,
+                    o.PaymentStatus,
+                    o.PaymentReference,
+                    o.TotalAmount,
+                    o.CreatedAtUtc,
+                    o.PaidAtUtc
+                })
+                .ToListAsync(ct);
+
+            return Results.Ok(orders);
+        })
+        .AllowAnonymous();
+
         // Webhook receiver for Xendit payment updates
         group.MapPost("/xendit-webhook", async (
             HttpContext context,
