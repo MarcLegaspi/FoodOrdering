@@ -5,9 +5,11 @@ using FoodOrdering.Api.Services;
 using FoodOrdering.Application;
 using FoodOrdering.Application.Common.Interfaces;
 using FoodOrdering.Infrastructure;
+using FoodOrdering.Infrastructure.Database;
 using FoodOrdering.Infrastructure.Identity;
 using FoodOrdering.Infrastructure.Storage;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Scalar.AspNetCore;
 
@@ -81,6 +83,23 @@ app.MapPromoEndpoints();
 app.MapReviewEndpoints();
 app.MapOrderEndpoints();
 app.MapHub<OrderHub>("/hubs/orders");
+
+// Automatically apply any pending EF Core database migrations on startup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseMigration");
+    try
+    {
+        logger.LogInformation("Checking and applying pending database migrations...");
+        await db.Database.MigrateAsync();
+        logger.LogInformation("Database migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to apply database migrations on startup.");
+    }
+}
 
 await AdminSeeder.SeedAsync(app.Services);
 

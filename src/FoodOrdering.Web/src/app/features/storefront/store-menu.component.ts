@@ -954,7 +954,7 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.submitting.set(false);
-          this.orderError.set(err?.error?.error ?? err?.error?.message ?? 'Could not place order.');
+          this.orderError.set(err?.error?.error ?? err?.error?.detail ?? err?.error?.message ?? err?.message ?? 'Could not place order.');
         }
       });
   }
