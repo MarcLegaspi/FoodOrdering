@@ -202,6 +202,14 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                     </span>
                   }
                   <span
+                    class="rounded-full px-2 py-0.5 text-xs font-bold"
+                    [class]="order.paymentStatus === PaymentStatus.Paid
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : 'bg-amber-100 text-amber-800 border border-amber-300'"
+                  >
+                    {{ order.paymentStatus === PaymentStatus.Paid ? '✓ PAID' : '⏳ UNPAID' }}
+                  </span>
+                  <span
                     class="rounded-full px-3 py-1 text-xs font-semibold"
                     [class]="order.status === OrderStatus.OutForDelivery ? 'bg-purple-100 text-purple-900 border border-purple-200' : 'bg-slate-100 text-slate-700'"
                   >
@@ -1411,7 +1419,16 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     this.liveSubscriptions.add(
       this.orderLive.orderUpdated$.subscribe((order) => {
         if (order.storeSlug === this.storeSlug()) {
+          const prev = this.orders().find((o) => o.publicId === order.publicId);
           this.orders.update((list) => upsertOrderList(list, order));
+
+          // If payment was just confirmed, notify kitchen with alert and chime!
+          if (order.paymentStatus === PaymentStatus.Paid && prev?.paymentStatus !== PaymentStatus.Paid) {
+            this.liveAlert.set(`💰 Payment confirmed for Order ${order.orderNumber}!`);
+            if (this.soundEnabled()) {
+              this.playNewOrderChime();
+            }
+          }
         }
       })
     );
