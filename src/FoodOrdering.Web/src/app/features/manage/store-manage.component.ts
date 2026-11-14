@@ -1122,6 +1122,89 @@ import { resolveImageUrl } from '../../core/utils/media-url';
               </div>
             </div>
 
+            <div class="border-t border-slate-200 pt-4">
+              <h3 class="text-sm font-bold text-slate-900">Store Branding & Custom Images</h3>
+              <p class="mt-0.5 text-xs text-slate-500">Configure your store logo badge and cover banner shown on the Store Selection page.</p>
+
+              <div class="mt-3 grid gap-4 sm:grid-cols-2">
+                <!-- Logo Badge -->
+                <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <label class="block text-xs font-bold text-slate-800">Store Logo Emblem</label>
+                    <span class="text-[11px] text-slate-400">Square avatar (1:1)</span>
+                  </div>
+
+                  <div class="flex items-center gap-3">
+                    <div class="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 border-white bg-white p-1 shadow-md flex items-center justify-center">
+                      @if (storeLogoUrl) {
+                        <img [src]="imageUrl(storeLogoUrl)" alt="Logo preview" class="h-full w-full object-contain" />
+                      } @else {
+                        <span class="text-2xl">🏪</span>
+                      }
+                    </div>
+                    <div class="flex-1 space-y-2">
+                      <input
+                        type="text"
+                        name="storeLogoUrl"
+                        [(ngModel)]="storeLogoUrl"
+                        placeholder="Image URL or upload file"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs bg-white"
+                      />
+                      <label class="inline-flex items-center gap-1.5 cursor-pointer rounded-lg bg-white border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
+                        <span>{{ uploadingLogo() ? '⏳ Uploading...' : '📁 Upload Logo Image' }}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          (change)="onStoreLogoFileSelected($event)"
+                          [disabled]="uploadingLogo()"
+                          class="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Cover Banner -->
+                <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <label class="block text-xs font-bold text-slate-800">Cover Banner Photo</label>
+                    <span class="text-[11px] text-slate-400">Header photo (16:9)</span>
+                  </div>
+
+                  <div class="space-y-2">
+                    <div class="h-16 w-full overflow-hidden rounded-xl border border-slate-300 bg-white">
+                      @if (storeBannerImageUrl) {
+                        <img [src]="imageUrl(storeBannerImageUrl)" alt="Banner preview" class="h-full w-full object-cover" />
+                      } @else {
+                        <div class="flex h-full w-full items-center justify-center bg-slate-100 text-xs text-slate-400">
+                          Using default culinary banner
+                        </div>
+                      }
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="text"
+                        name="storeBannerImageUrl"
+                        [(ngModel)]="storeBannerImageUrl"
+                        placeholder="Banner image URL or upload"
+                        class="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs bg-white"
+                      />
+                      <label class="shrink-0 inline-flex items-center gap-1.5 cursor-pointer rounded-lg bg-white border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
+                        <span>{{ uploadingBanner() ? '⏳ Uploading...' : '📁 Upload Banner' }}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          (change)="onStoreBannerFileSelected($event)"
+                          [disabled]="uploadingBanner()"
+                          class="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <button
               type="submit"
               [disabled]="savingProfile()"
@@ -1395,6 +1478,10 @@ export class StoreManageComponent implements OnInit, OnDestroy {
   storeMinimumDeliveryOrder = 0;
   storeFreeDeliveryThreshold: number | null = null;
   storeEstimatedDeliveryTime = '';
+  storeLogoUrl = '';
+  storeBannerImageUrl = '';
+  readonly uploadingLogo = signal(false);
+  readonly uploadingBanner = signal(false);
 
   promoCode = '';
   promoDiscountType: PromoDiscountType = PromoDiscountType.Percentage;
@@ -1800,7 +1887,9 @@ export class StoreManageComponent implements OnInit, OnDestroy {
         deliveryFee: this.storeDeliveryFee,
         minimumDeliveryOrder: this.storeMinimumDeliveryOrder,
         freeDeliveryThreshold: this.storeFreeDeliveryThreshold,
-        estimatedDeliveryTime: this.storeEstimatedDeliveryTime
+        estimatedDeliveryTime: this.storeEstimatedDeliveryTime,
+        logoUrl: this.storeLogoUrl || null,
+        bannerImageUrl: this.storeBannerImageUrl || null
       })
       .subscribe({
         next: (updated) => {
@@ -1813,6 +1902,46 @@ export class StoreManageComponent implements OnInit, OnDestroy {
           this.setError(err, 'Could not update store profile.');
         }
       });
+  }
+
+  onStoreLogoFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0];
+    if (!file) return;
+
+    this.clearAlerts();
+    this.uploadingLogo.set(true);
+    this.api.uploadStoreImage(file).subscribe({
+      next: (res) => {
+        this.storeLogoUrl = res.imageUrl;
+        this.uploadingLogo.set(false);
+        this.message.set('Logo uploaded. Click "Save Store Profile" to save changes.');
+      },
+      error: (err) => {
+        this.uploadingLogo.set(false);
+        this.setError(err, 'Could not upload store logo.');
+      }
+    });
+  }
+
+  onStoreBannerFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0];
+    if (!file) return;
+
+    this.clearAlerts();
+    this.uploadingBanner.set(true);
+    this.api.uploadStoreImage(file).subscribe({
+      next: (res) => {
+        this.storeBannerImageUrl = res.imageUrl;
+        this.uploadingBanner.set(false);
+        this.message.set('Banner image uploaded. Click "Save Store Profile" to save changes.');
+      },
+      error: (err) => {
+        this.uploadingBanner.set(false);
+        this.setError(err, 'Could not upload banner image.');
+      }
+    });
   }
 
   onMenuImageSelected(event: Event): void {
@@ -2038,6 +2167,8 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     this.storeMinimumDeliveryOrder = store.minimumDeliveryOrder ?? 0;
     this.storeFreeDeliveryThreshold = store.freeDeliveryThreshold ?? null;
     this.storeEstimatedDeliveryTime = store.estimatedDeliveryTime ?? '';
+    this.storeLogoUrl = store.logoUrl ?? '';
+    this.storeBannerImageUrl = store.bannerImageUrl ?? '';
   }
 
   private refreshOrders(): void {

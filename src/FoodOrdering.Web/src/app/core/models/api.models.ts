@@ -94,6 +94,8 @@ export interface Store {
   estimatedDeliveryTime: string;
   averageRating?: number | null;
   reviewCount: number;
+  logoUrl?: string | null;
+  bannerImageUrl?: string | null;
 }
 
 export interface UpdateStoreProfileRequest {
@@ -106,6 +108,8 @@ export interface UpdateStoreProfileRequest {
   minimumDeliveryOrder?: number;
   freeDeliveryThreshold?: number | null;
   estimatedDeliveryTime?: string;
+  logoUrl?: string | null;
+  bannerImageUrl?: string | null;
 }
 
 export interface CreateStoreRequest {
@@ -116,6 +120,8 @@ export interface CreateStoreRequest {
   ownerEmail?: string | null;
   ownerFullName?: string | null;
   ownerPassword?: string | null;
+  logoUrl?: string | null;
+  bannerImageUrl?: string | null;
 }
 
 export interface Category {

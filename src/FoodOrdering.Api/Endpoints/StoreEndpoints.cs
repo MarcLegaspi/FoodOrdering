@@ -1,5 +1,6 @@
 using FoodOrdering.Api.Filters;
 using FoodOrdering.Application.Auth;
+using FoodOrdering.Application.Catalog;
 using FoodOrdering.Application.Stores;
 using FoodOrdering.Domain.Stores;
 
@@ -71,6 +72,28 @@ public static class StoreEndpoints
             return Results.Ok(result.Store);
         })
         .RequireStoreRole(StoreRole.Manager);
+
+        group.MapPost("/current/upload-image", async (
+            IFormFile? file,
+            MenuItemImageService imageService,
+            CancellationToken ct) =>
+        {
+            if (file is null)
+            {
+                return Results.BadRequest(new { error = "Image file is required." });
+            }
+
+            await using var stream = file.OpenReadStream();
+            var result = await imageService.UploadAsync(file.FileName, file.Length, stream, ct);
+            if (result.Error is not null || result.ImageUrl is null)
+            {
+                return Results.BadRequest(new { error = result.Error });
+            }
+
+            return Results.Ok(new { imageUrl = result.ImageUrl });
+        })
+        .RequireStoreRole(StoreRole.Manager)
+        .DisableAntiforgery();
 
         return app;
     }

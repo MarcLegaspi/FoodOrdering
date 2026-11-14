@@ -791,6 +791,14 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         .HasColumnType("character varying(100)")
                         .HasDefaultValue("");
 
+                    b.Property<string>("BannerImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<decimal?>("FreeDeliveryThreshold")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -862,12 +870,14 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         {
                             Id = 1L,
                             Address = "101 Grill Ave, Downtown",
+                            BannerImageUrl = "/images/stores/burger-barn.jpg",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             DeliveryFee = 0m,
                             Email = "hello@burgerbarn.local",
                             EstimatedDeliveryTime = "",
                             IsAcceptingOrders = true,
                             IsActive = true,
+                            LogoUrl = "/images/stores/burger-barn-logo.svg",
                             MinimumDeliveryOrder = 0m,
                             Name = "Burger Barn",
                             OpeningHours = "Daily 10:00 AM - 10:00 PM",
@@ -880,12 +890,14 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         {
                             Id = 2L,
                             Address = "202 Brick Oven St, Midtown",
+                            BannerImageUrl = "/images/stores/pizza-palace.jpg",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             DeliveryFee = 0m,
                             Email = "hello@pizzapalace.local",
                             EstimatedDeliveryTime = "",
                             IsAcceptingOrders = true,
                             IsActive = true,
+                            LogoUrl = "/images/stores/pizza-palace-logo.svg",
                             MinimumDeliveryOrder = 0m,
                             Name = "Pizza Palace",
                             OpeningHours = "Daily 11:00 AM - 11:00 PM",
@@ -898,12 +910,14 @@ namespace FoodOrdering.Infrastructure.Database.Migrations
                         {
                             Id = 3L,
                             Address = "303 Harbor Way, Waterfront",
+                            BannerImageUrl = "/images/stores/sushi-spot.jpg",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             DeliveryFee = 0m,
                             Email = "hello@sushispot.local",
                             EstimatedDeliveryTime = "",
                             IsAcceptingOrders = true,
                             IsActive = true,
+                            LogoUrl = "/images/stores/sushi-spot-logo.svg",
                             MinimumDeliveryOrder = 0m,
                             Name = "Sushi Spot",
                             OpeningHours = "Tue-Sun 11:30 AM - 9:30 PM",

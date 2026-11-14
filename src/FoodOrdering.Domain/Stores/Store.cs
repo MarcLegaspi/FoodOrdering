@@ -31,6 +31,10 @@ public sealed class Store : AuditableEntity
 
     public string EstimatedDeliveryTime { get; set; } = string.Empty;
 
+    public string? LogoUrl { get; set; }
+
+    public string? BannerImageUrl { get; set; }
+
     public double? AverageRating { get; set; }
 
     public int ReviewCount { get; set; } = 0;

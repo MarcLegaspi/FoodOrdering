@@ -79,6 +79,12 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
             .HasMaxLength(100)
             .HasDefaultValue(string.Empty);
 
+        builder.Property(s => s.LogoUrl)
+            .HasMaxLength(500);
+
+        builder.Property(s => s.BannerImageUrl)
+            .HasMaxLength(500);
+
         var seedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         builder.HasData(
@@ -92,6 +98,8 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
                 Phone = "+1-555-0101",
                 Address = "101 Grill Ave, Downtown",
                 OpeningHours = "Daily 10:00 AM - 10:00 PM",
+                LogoUrl = "/images/stores/burger-barn-logo.svg",
+                BannerImageUrl = "/images/stores/burger-barn.jpg",
                 IsActive = true,
                 IsAcceptingOrders = true,
                 CreatedAtUtc = seedDate
@@ -106,6 +114,8 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
                 Phone = "+1-555-0102",
                 Address = "202 Brick Oven St, Midtown",
                 OpeningHours = "Daily 11:00 AM - 11:00 PM",
+                LogoUrl = "/images/stores/pizza-palace-logo.svg",
+                BannerImageUrl = "/images/stores/pizza-palace.jpg",
                 IsActive = true,
                 IsAcceptingOrders = true,
                 CreatedAtUtc = seedDate
@@ -120,6 +130,8 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
                 Phone = "+1-555-0103",
                 Address = "303 Harbor Way, Waterfront",
                 OpeningHours = "Tue-Sun 11:30 AM - 9:30 PM",
+                LogoUrl = "/images/stores/sushi-spot-logo.svg",
+                BannerImageUrl = "/images/stores/sushi-spot.jpg",
                 IsActive = true,
                 IsAcceptingOrders = true,
                 CreatedAtUtc = seedDate

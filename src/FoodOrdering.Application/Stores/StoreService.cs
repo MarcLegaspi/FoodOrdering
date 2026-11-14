@@ -85,7 +85,9 @@ public sealed class StoreService(
             DeliveryFee = request.DeliveryFee < 0 ? 0m : request.DeliveryFee,
             MinimumDeliveryOrder = request.MinimumDeliveryOrder < 0 ? 0m : request.MinimumDeliveryOrder,
             FreeDeliveryThreshold = request.FreeDeliveryThreshold is { } ft && ft >= 0 ? ft : null,
-            EstimatedDeliveryTime = request.EstimatedDeliveryTime?.Trim() ?? string.Empty
+            EstimatedDeliveryTime = request.EstimatedDeliveryTime?.Trim() ?? string.Empty,
+            LogoUrl = string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim(),
+            BannerImageUrl = string.IsNullOrWhiteSpace(request.BannerImageUrl) ? null : request.BannerImageUrl.Trim()
         };
 
         db.Stores.Add(store);
@@ -156,6 +158,8 @@ public sealed class StoreService(
         store.MinimumDeliveryOrder = request.MinimumDeliveryOrder < 0 ? 0m : request.MinimumDeliveryOrder;
         store.FreeDeliveryThreshold = request.FreeDeliveryThreshold is { } threshold && threshold >= 0 ? threshold : null;
         store.EstimatedDeliveryTime = request.EstimatedDeliveryTime?.Trim() ?? string.Empty;
+        store.LogoUrl = string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim();
+        store.BannerImageUrl = string.IsNullOrWhiteSpace(request.BannerImageUrl) ? null : request.BannerImageUrl.Trim();
 
         await db.SaveChangesAsync(ct);
 
@@ -182,7 +186,9 @@ public sealed class StoreService(
             store.FreeDeliveryThreshold,
             store.EstimatedDeliveryTime,
             store.AverageRating,
-            store.ReviewCount);
+            store.ReviewCount,
+            store.LogoUrl,
+            store.BannerImageUrl);
 }
 
 public sealed record StoreProfileResult(

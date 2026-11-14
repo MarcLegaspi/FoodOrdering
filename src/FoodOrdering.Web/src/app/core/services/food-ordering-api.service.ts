@@ -49,6 +49,12 @@ export class FoodOrderingApiService {
     return this.http.put<Store>(`${this.api}/stores/current/profile`, payload);
   }
 
+  uploadStoreImage(file: File): Observable<{ imageUrl: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ imageUrl: string }>(`${this.api}/stores/current/upload-image`, formData);
+  }
+
   // Categories (uses X-Store-Slug via tenantInterceptor)
   getCategories(): Observable<Category[]> {
     return this.http.get<Category[]>(`${this.api}/categories`);

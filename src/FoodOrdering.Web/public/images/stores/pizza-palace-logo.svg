@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="pp-bg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#EF4444" />
+      <stop offset="100%" stop-color="#B91C1C" />
+    </linearGradient>
+    <filter id="pp-shadow" x="0" y="0" width="120" height="120" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-opacity="0.15" />
+    </filter>
+  </defs>
+  <circle cx="60" cy="60" r="56" fill="url(#pp-bg)" filter="url(#pp-shadow)"/>
+  <circle cx="60" cy="60" r="52" stroke="#FEE2E2" stroke-width="2" stroke-opacity="0.5" fill="none" />
+  
+  <!-- Pizza Slice Crust -->
+  <path d="M30 34 C48 24 72 24 90 34 L60 96 Z" fill="#D97706" />
+  <!-- Cheese body -->
+  <path d="M34 38 C49 29 71 29 86 38 L60 90 Z" fill="#FBBF24" />
+  
+  <!-- Pepperonis -->
+  <circle cx="52" cy="46" r="6" fill="#991B1B" />
+  <circle cx="51" cy="45" r="4.5" fill="#B91C1C" />
+  
+  <circle cx="68" cy="50" r="6.5" fill="#991B1B" />
+  <circle cx="67" cy="49" r="5" fill="#B91C1C" />
+  
+  <circle cx="60" cy="66" r="5.5" fill="#991B1B" />
+  <circle cx="59.5" cy="65.5" r="4" fill="#B91C1C" />
+  
+  <!-- Basil Leaf / Oregano specks -->
+  <ellipse cx="44" cy="58" rx="4" ry="2.5" transform="rotate(-30 44 58)" fill="#10B981" />
+  <ellipse cx="73" cy="68" rx="3.5" ry="2" transform="rotate(25 73 68)" fill="#10B981" />
+  <circle cx="56" cy="78" r="1" fill="#059669" />
+  <circle cx="64" cy="38" r="1.2" fill="#059669" />
+</svg>

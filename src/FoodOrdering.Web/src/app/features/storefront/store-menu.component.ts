@@ -8,6 +8,7 @@ import { Category, MenuItem, OrderReview, OrderType, PaymentMethod, PromoDiscoun
 import { FoodOrderingApiService } from '../../core/services/food-ordering-api.service';
 import { TenantService } from '../../core/tenant/tenant.service';
 import { resolveImageUrl } from '../../core/utils/media-url';
+import { getStoreVisuals } from '../../core/utils/store-theme';
 
 @Component({
   selector: 'app-store-menu',
@@ -22,8 +23,20 @@ import { resolveImageUrl } from '../../core/utils/media-url';
         <!-- Menu Section -->
         <div class="space-y-6 lg:col-span-2">
           <div class="rounded-xl border border-slate-200 bg-white p-6">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <h1 class="text-2xl font-bold text-slate-900">{{ activeStore.name }}</h1>
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <div class="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+                  <img
+                    [src]="storeVisuals().logoUrl"
+                    [alt]="activeStore.name + ' logo'"
+                    class="h-full w-full object-contain"
+                  />
+                </div>
+                <div>
+                  <h1 class="text-2xl font-bold text-slate-900">{{ activeStore.name }}</h1>
+                  <p class="text-xs font-medium text-slate-500">{{ storeVisuals().cuisine }}</p>
+                </div>
+              </div>
               <span
                 class="rounded-full px-2.5 py-0.5 text-xs font-medium"
                 [class]="activeStore.isAcceptingOrders ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'"
@@ -752,6 +765,10 @@ export class StoreMenuComponent implements OnInit, OnDestroy {
   readonly cart = inject(CartService);
 
   readonly store = signal<Store | null>(null);
+  readonly storeVisuals = computed(() => {
+    const s = this.store();
+    return getStoreVisuals(s?.slug, s?.name, s?.logoUrl, s?.bannerImageUrl);
+  });
   readonly categories = signal<Category[]>([]);
   readonly menuItems = signal<MenuItem[]>([]);
   readonly loading = signal(true);

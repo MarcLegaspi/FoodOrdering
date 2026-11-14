@@ -13,7 +13,9 @@ public sealed record CreateStoreRequest(
     decimal DeliveryFee = 0m,
     decimal MinimumDeliveryOrder = 0m,
     decimal? FreeDeliveryThreshold = null,
-    string EstimatedDeliveryTime = "");
+    string EstimatedDeliveryTime = "",
+    string? LogoUrl = null,
+    string? BannerImageUrl = null);
 
 public sealed record UpdateStoreSettingsRequest(bool IsAcceptingOrders);
 
@@ -26,7 +28,9 @@ public sealed record UpdateStoreProfileRequest(
     decimal DeliveryFee = 0m,
     decimal MinimumDeliveryOrder = 0m,
     decimal? FreeDeliveryThreshold = null,
-    string EstimatedDeliveryTime = "");
+    string EstimatedDeliveryTime = "",
+    string? LogoUrl = null,
+    string? BannerImageUrl = null);
 
 public sealed record StoreResponse(
     Guid PublicId,
@@ -44,4 +48,6 @@ public sealed record StoreResponse(
     decimal? FreeDeliveryThreshold = null,
     string EstimatedDeliveryTime = "",
     double? AverageRating = null,
-    int ReviewCount = 0);
+    int ReviewCount = 0,
+    string? LogoUrl = null,
+    string? BannerImageUrl = null);

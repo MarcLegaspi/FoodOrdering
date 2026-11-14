@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="bb-bg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+    <filter id="bb-shadow" x="0" y="0" width="120" height="120" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-opacity="0.15" />
+    </filter>
+  </defs>
+  <circle cx="60" cy="60" r="56" fill="url(#bb-bg)" filter="url(#bb-shadow)"/>
+  <circle cx="60" cy="60" r="52" stroke="#FEF3C7" stroke-width="2" stroke-opacity="0.5" fill="none" />
+  <!-- Top Bun -->
+  <path d="M30 52 C30 35 42 26 60 26 C78 26 90 35 90 52 Z" fill="#FDE68A" />
+  <!-- Sesame seeds -->
+  <circle cx="48" cy="38" r="1.5" fill="#FEF3C7" />
+  <circle cx="60" cy="34" r="1.5" fill="#FEF3C7" />
+  <circle cx="72" cy="38" r="1.5" fill="#FEF3C7" />
+  <circle cx="54" cy="44" r="1.5" fill="#FEF3C7" />
+  <circle cx="66" cy="44" r="1.5" fill="#FEF3C7" />
+  <!-- Lettuce -->
+  <path d="M28 54 Q33 50 38 54 Q43 58 48 54 Q53 50 58 54 Q63 58 68 54 Q73 50 78 54 Q83 58 88 54 Q92 50 94 54 L92 57 Q86 60 81 57 Q76 54 71 57 Q66 60 61 57 Q56 54 51 57 Q46 60 41 57 Q36 54 30 57 Z" fill="#34D399" />
+  <!-- Melted Cheese -->
+  <polygon points="32,60 88,60 82,69 68,64 56,71 44,63 32,60" fill="#FBBF24" />
+  <!-- Beef Patty -->
+  <rect x="29" y="66" width="62" height="13" rx="6.5" fill="#78350F" />
+  <!-- Bottom Bun -->
+  <path d="M32 82 C32 82 32 94 60 94 C88 94 88 82 88 82 Z" fill="#FDE68A" />
+</svg>

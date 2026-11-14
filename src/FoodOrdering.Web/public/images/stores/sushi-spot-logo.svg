@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="ss-bg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F766E" />
+      <stop offset="100%" stop-color="#115E59" />
+    </linearGradient>
+    <filter id="ss-shadow" x="0" y="0" width="120" height="120" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-opacity="0.15" />
+    </filter>
+  </defs>
+  <circle cx="60" cy="60" r="56" fill="url(#ss-bg)" filter="url(#ss-shadow)"/>
+  <circle cx="60" cy="60" r="52" stroke="#CCFBF1" stroke-width="2" stroke-opacity="0.5" fill="none" />
+  
+  <!-- Sushi Roll (Nori outer ring) -->
+  <circle cx="60" cy="60" r="34" fill="#0F172A" stroke="#1E293B" stroke-width="2" />
+  <!-- Rice layer -->
+  <circle cx="60" cy="60" r="28" fill="#F8FAFC" />
+  <!-- Rice texture dots -->
+  <circle cx="48" cy="48" r="1.5" fill="#E2E8F0" />
+  <circle cx="72" cy="48" r="1.5" fill="#E2E8F0" />
+  <circle cx="72" cy="72" r="1.5" fill="#E2E8F0" />
+  <circle cx="48" cy="72" r="1.5" fill="#E2E8F0" />
+  
+  <!-- Fillings -->
+  <!-- Fresh Salmon Center -->
+  <circle cx="56" cy="56" r="12" fill="#F97316" />
+  <path d="M48 56 Q56 50 64 56" stroke="#FED7AA" stroke-width="1.5" stroke-linecap="round" fill="none" />
+  <path d="M50 62 Q56 56 62 62" stroke="#FED7AA" stroke-width="1.5" stroke-linecap="round" fill="none" />
+  
+  <!-- Avocado slice -->
+  <ellipse cx="68" cy="64" rx="7" ry="5" transform="rotate(-20 68 64)" fill="#84CC16" />
+  <ellipse cx="68" cy="64" rx="5" ry="3" transform="rotate(-20 68 64)" fill="#A3E635" />
+  
+  <!-- Roe / Tobiko accents -->
+  <circle cx="64" cy="47" r="2.5" fill="#EA580C" />
+  <circle cx="58" cy="70" r="2.2" fill="#EA580C" />
+</svg>
