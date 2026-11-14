@@ -72,13 +72,13 @@ import { StoreVisuals, getStoreVisuals } from '../../core/utils/store-theme';
                   }
                 </div>
 
-                <!-- Floating Logo Emblem -->
-                <div class="absolute -bottom-5 left-4">
-                  <div class="h-14 w-14 overflow-hidden rounded-2xl border-2 border-white bg-white shadow-md transition-transform duration-300 group-hover:scale-105">
+                <!-- Store Logo Emblem (Cleanly positioned on the banner) -->
+                <div class="absolute bottom-3 left-3.5 z-10">
+                  <div class="h-14 w-14 overflow-hidden rounded-2xl border-2 border-white bg-white p-1 shadow-lg transition-transform duration-300 group-hover:scale-105">
                     <img
                       [src]="visuals.logoUrl"
                       [alt]="store.name + ' logo'"
-                      class="h-full w-full object-cover p-1"
+                      class="h-full w-full object-contain"
                       (error)="onLogoError($event, store)"
                     />
                   </div>
@@ -86,7 +86,7 @@ import { StoreVisuals, getStoreVisuals } from '../../core/utils/store-theme';
 
                 <!-- Star Rating Pill (Bottom Right of Banner) -->
                 @if (store.averageRating) {
-                  <div class="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-0.5 text-xs font-bold text-amber-800 shadow-sm backdrop-blur-sm">
+                  <div class="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-0.5 text-xs font-bold text-amber-800 shadow-sm backdrop-blur-sm">
                     <span class="text-amber-500">★</span>
                     <span>{{ store.averageRating.toFixed(1) }}</span>
                     <span class="text-slate-400 font-normal text-[11px]">({{ store.reviewCount }})</span>
@@ -95,7 +95,7 @@ import { StoreVisuals, getStoreVisuals } from '../../core/utils/store-theme';
               </div>
 
               <!-- Store Info Body -->
-              <div class="flex flex-1 flex-col p-5 pt-8">
+              <div class="flex flex-1 flex-col p-5 pt-4">
                 <!-- Title & Slug -->
                 <div class="flex items-start justify-between gap-2">
                   <div class="min-w-0 flex-1">
