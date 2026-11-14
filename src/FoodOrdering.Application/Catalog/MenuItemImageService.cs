@@ -14,7 +14,8 @@ public sealed class MenuItemImageService(
         ".jpeg",
         ".png",
         ".webp",
-        ".gif"
+        ".gif",
+        ".svg"
     ];
 
     public async Task<UploadMenuImageResult> UploadAsync(
@@ -42,7 +43,7 @@ public sealed class MenuItemImageService(
         if (!AllowedExtensions.Contains(extension))
         {
             return UploadMenuImageResult.ValidationError(
-                "Unsupported image format. Allowed types: .jpg, .jpeg, .png, .webp, .gif.");
+                "Unsupported image format. Allowed types: .jpg, .jpeg, .png, .webp, .gif, .svg.");
         }
 
         await using var buffer = new MemoryStream();
@@ -127,8 +128,19 @@ public sealed class MenuItemImageService(
                 && header[9] == 0x45
                 && header[10] == 0x42
                 && header[11] == 0x50,
+            ".svg" => IsValidSvg(header),
             _ => false
         };
+    }
+
+    private static bool IsValidSvg(ReadOnlySpan<byte> data)
+    {
+        if (data.Length < 4) return false;
+        var slice = data[..Math.Min(data.Length, 1024)];
+        var text = System.Text.Encoding.UTF8.GetString(slice).TrimStart();
+        return text.StartsWith("<svg", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("<svg", StringComparison.OrdinalIgnoreCase);
     }
 }
 

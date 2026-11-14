@@ -1126,6 +1126,17 @@ import { resolveImageUrl } from '../../core/utils/media-url';
               <h3 class="text-sm font-bold text-slate-900">Store Branding & Custom Images</h3>
               <p class="mt-0.5 text-xs text-slate-500">Configure your store logo badge and cover banner shown on the Store Selection page.</p>
 
+              @if (error()) {
+                <div class="mt-2 rounded-lg bg-red-50 p-2.5 text-xs text-red-700 font-medium">
+                  {{ error() }}
+                </div>
+              }
+              @if (message()) {
+                <div class="mt-2 rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-700 font-medium">
+                  {{ message() }}
+                </div>
+              }
+
               <div class="mt-3 grid gap-4 sm:grid-cols-2">
                 <!-- Logo Badge -->
                 <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
@@ -1150,16 +1161,19 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                         placeholder="Image URL or upload file"
                         class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs bg-white"
                       />
-                      <label class="inline-flex items-center gap-1.5 cursor-pointer rounded-lg bg-white border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
-                        <span>{{ uploadingLogo() ? '⏳ Uploading...' : '📁 Upload Logo Image' }}</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          (change)="onStoreLogoFileSelected($event)"
-                          [disabled]="uploadingLogo()"
-                          class="hidden"
-                        />
-                      </label>
+                      <div class="flex items-center gap-2">
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer rounded-lg bg-white border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
+                          <span>{{ uploadingLogo() ? '⏳ Uploading...' : '📁 Upload Logo Image' }}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            (change)="onStoreLogoFileSelected($event)"
+                            [disabled]="uploadingLogo()"
+                            class="hidden"
+                          />
+                        </label>
+                        <span class="text-[10px] text-slate-400">Max 5 MB (JPG, PNG, SVG)</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1200,6 +1214,7 @@ import { resolveImageUrl } from '../../core/utils/media-url';
                         />
                       </label>
                     </div>
+                    <p class="text-[10px] text-slate-400">Max 5 MB (JPG, PNG, WEBP)</p>
                   </div>
                 </div>
               </div>
@@ -1910,16 +1925,33 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     if (!file) return;
 
     this.clearAlerts();
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.error.set(`Image file "${file.name}" is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Maximum allowed size is 5 MB.`);
+      if (input) input.value = '';
+      return;
+    }
+
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg'];
+    if (!allowed.includes(ext)) {
+      this.error.set(`"${ext}" is not supported. Please upload a .jpg, .png, .webp, .gif, or .svg image.`);
+      if (input) input.value = '';
+      return;
+    }
+
     this.uploadingLogo.set(true);
     this.api.uploadStoreImage(file).subscribe({
       next: (res) => {
         this.storeLogoUrl = res.imageUrl;
         this.uploadingLogo.set(false);
         this.message.set('Logo uploaded. Click "Save Store Profile" to save changes.');
+        if (input) input.value = '';
       },
       error: (err) => {
         this.uploadingLogo.set(false);
         this.setError(err, 'Could not upload store logo.');
+        if (input) input.value = '';
       }
     });
   }
@@ -1930,16 +1962,33 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     if (!file) return;
 
     this.clearAlerts();
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.error.set(`Image file "${file.name}" is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Maximum allowed size is 5 MB.`);
+      if (input) input.value = '';
+      return;
+    }
+
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg'];
+    if (!allowed.includes(ext)) {
+      this.error.set(`"${ext}" is not supported. Please upload a .jpg, .png, .webp, .gif, or .svg image.`);
+      if (input) input.value = '';
+      return;
+    }
+
     this.uploadingBanner.set(true);
     this.api.uploadStoreImage(file).subscribe({
       next: (res) => {
         this.storeBannerImageUrl = res.imageUrl;
         this.uploadingBanner.set(false);
         this.message.set('Banner image uploaded. Click "Save Store Profile" to save changes.');
+        if (input) input.value = '';
       },
       error: (err) => {
         this.uploadingBanner.set(false);
         this.setError(err, 'Could not upload banner image.');
+        if (input) input.value = '';
       }
     });
   }
@@ -2187,9 +2236,16 @@ export class StoreManageComponent implements OnInit, OnDestroy {
     this.error.set(null);
   }
 
-  private setError(err: { error?: { error?: string }; status?: number }, fallback: string): void {
-    if (err?.error?.error) {
-      this.error.set(err.error.error);
+  private setError(err: any, fallback: string): void {
+    const serverMsg =
+      err?.error?.error ||
+      err?.error?.message ||
+      err?.error?.detail ||
+      err?.error?.title ||
+      (typeof err?.error === 'string' && err.error.length < 200 ? err.error : null);
+
+    if (serverMsg) {
+      this.error.set(serverMsg);
       return;
     }
 
